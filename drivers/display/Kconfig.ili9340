@@ -26,6 +26,9 @@ config ILI9340_LCD_ADAFRUIT_1480
 config ILI9340_LCD_SEEED_TFTV2
 	bool "Seeed 2.8\" TFT v2.0"
 
+config ILI9340_LCD_WINSTAR_WF24LTYAJDNN0
+	bool "Winstar WF24LTYAJDNN0"
+
 endchoice
 
 choice
