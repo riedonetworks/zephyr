@@ -11,8 +11,9 @@
 #include <fsl_flexio_uart.h>
 #include <soc.h>
 
-#define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
+
 #include <logging/log.h>
+#define LOG_LEVEL LOG_LEVEL_INF
 LOG_MODULE_REGISTER(flexio_uart);
 
 struct mcux_flexio_uart_config {
@@ -241,8 +242,8 @@ static int mcux_flexio_uart_init(struct device *dev)
 				   &clock_freq)) {
 		return -EINVAL;
 	}
-	LOG_INF("Clock freq: %d", clock_freq);
-	LOG_DBG("target baudrade: %d", config->baud_rate);
+	LOG_DBG("Clock freq: %d", clock_freq);
+	LOG_INF("target baudrade: %d", config->baud_rate);
 	LOG_DBG("TX pin: %d", config->base->TxPinIndex);
 	LOG_DBG("RX pin: %d", config->base->RxPinIndex);
 	LOG_DBG("FlexIO: %p", config->base->flexioBase);
@@ -354,7 +355,7 @@ static void mcux_flexio_uart_config_func_0(struct device *dev)
 static void mcux_flexio_uart_config_func_0(struct device *dev);
 #endif
 
-static const FLEXIO_UART_Type uart_1_flexio_config = {
+static FLEXIO_UART_Type uart_1_flexio_config = {
 	
     .flexioBase      = FLEXIO2,
     .TxPinIndex      = DT_INST_1_NXP_IMXRT_FLEXIO_UART_TXD_SIGNAL, 
