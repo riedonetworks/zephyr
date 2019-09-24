@@ -161,6 +161,19 @@ static ALWAYS_INLINE void clock_init(void)
 	CLOCK_SetDiv(kCLOCK_UartDiv, 0); /* Set UART divider to 1 */
 #endif
 
+#ifdef CONFIG_UART_MCUX_FLEXIO_UART_1
+	/* Configure FlexIO divider to default */
+	CLOCK_SetMux(kCLOCK_Flexio1Mux, DT_INST_0_NXP_IMXRT_FLEXIO_UART_CLOCK_CONFIG_0); /* Set FLEXIO1 source  */
+	CLOCK_SetDiv(kCLOCK_Flexio1PreDiv, (DT_INST_0_NXP_IMXRT_FLEXIO_UART_CLOCK_CONFIG_1-1)); /* Set pre-divider  */
+	CLOCK_SetDiv(kCLOCK_Flexio1Div, (DT_INST_0_NXP_IMXRT_FLEXIO_UART_CLOCK_CONFIG_2-1)); /* Set divider*/
+#endif
+	
+#ifdef CONFIG_UART_MCUX_FLEXIO_UART_2
+	CLOCK_SetMux(kCLOCK_Flexio2Mux, (DT_INST_1_NXP_IMXRT_FLEXIO_UART_CLOCK_CONFIG_0)); /* Set FLEXIO1 source  */
+	CLOCK_SetDiv(kCLOCK_Flexio2PreDiv, (DT_INST_1_NXP_IMXRT_FLEXIO_UART_CLOCK_CONFIG_1-1)); /* Set pre-divider  */
+	CLOCK_SetDiv(kCLOCK_Flexio2Div, (DT_INST_1_NXP_IMXRT_FLEXIO_UART_CLOCK_CONFIG_2-1)); /* Set divider*/
+#endif
+
 #ifdef CONFIG_I2C_MCUX_LPI2C
 	CLOCK_SetMux(kCLOCK_Lpi2cMux, 0); /* Set I2C source as USB1 PLL 480M */
 	CLOCK_SetDiv(kCLOCK_Lpi2cDiv, 5); /* Set I2C divider to 6 */

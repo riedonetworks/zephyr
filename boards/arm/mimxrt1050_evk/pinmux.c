@@ -347,6 +347,15 @@ static int mimxrt1050_evk_init(struct device *dev)
 		IOMUXC_SW_PAD_CTL_PAD_PUS(2) |	 // 100K pull-up
 		IOMUXC_SW_PAD_CTL_PAD_DSE(0)	 // Disable output driver
 	);
+#ifdef CONFIG_UART_MCUX_FLEXIO_UART_2
+#ifdef CONFIG_DISPLAY_MCUX_ELCDIF
+#error Could not use eLCDIF and FLEXIO2 at the same time because of PinMus
+#endif
+	IOMUXC_SetPinMux(IOMUXC_GPIO_B0_05_FLEXIO2_FLEXIO05, 0);
+	IOMUXC_SetPinMux(IOMUXC_GPIO_B0_06_FLEXIO2_FLEXIO06, 0);
+	IOMUXC_SetPinConfig(IOMUXC_GPIO_B0_05_FLEXIO2_FLEXIO05, 0x10B0u);
+	IOMUXC_SetPinConfig(IOMUXC_GPIO_B0_06_FLEXIO2_FLEXIO06, 0x10B0u);
+#endif 
 
 	return 0;
 }

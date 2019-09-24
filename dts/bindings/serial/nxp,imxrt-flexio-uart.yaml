@@ -1,0 +1,45 @@
+title: Kinetis LPUART
+
+description: >
+    This binding gives a representation of the FlexIO periferal in UART mode.
+
+compatible: "nxp,imxrt-flexio-uart"
+
+include: uart-controller.yaml
+
+properties:
+    reg:
+      required: true
+
+    interrupts:
+      required: true
+
+    clocks:
+      required: true
+
+    clock-config:
+      type: array
+      required: false
+      default: [3, 2, 8]
+      description: Clock Mux, Pre-Divider and Divider setting in one array.
+
+    txd-signal:
+      type: int
+      required: true
+      description: FlexIO FXIO_Dn singal to use for the Tx data signal
+
+    txclk-signal:
+      type: int
+      required: false
+      description: FlexIO FXIO_Dn singal to use for the Tx clock signal
+
+    rxd-signal:
+      type: int
+      required: true
+      description: FlexIO FXIO_Dn singal to use for the Rx data signal
+
+    rxclk-signal:
+      type: int
+      required: false
+      description: FlexIO FXIO_Dn singal to use for the Rx clock signal
+
