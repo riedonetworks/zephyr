@@ -13,11 +13,13 @@
 
 
 #include <logging/log.h>
-#define LOG_LEVEL LOG_LEVEL_INF
+#define LOG_LEVEL LOG_LEVEL_DBG
 LOG_MODULE_REGISTER(flexio_uart);
 
 struct mcux_flexio_uart_config {
 	FLEXIO_UART_Type *base;
+	uint8_t tx_clk_pin_index;
+	uint8_t rx_clk_pin_index;
 	char *clock_controller;
 	clock_control_subsys_t clock_subsys;
 	u32_t baud_rate;
@@ -55,7 +57,7 @@ static void mcux_flexio_uart_poll_out(struct device *dev, unsigned char c)
 		& kFLEXIO_UART_TxDataRegEmptyFlag)) {
 	}
 
-	LOG_DBG("Writing 0x%02X to %p", c, config->base->flexioBase);
+	//LOG_DBG("Writing 0x%02X to %p", c, config->base->flexioBase);
 
 	FLEXIO_UART_WriteByte(config->base, &c);
 }
@@ -226,6 +228,8 @@ static void mcux_flexio_uart_isr(void *arg)
 }
 #endif /* CONFIG_UART_INTERRUPT_DRIVEN */
 
+
+
 static int mcux_flexio_uart_init(struct device *dev)
 {
 	const struct mcux_flexio_uart_config *config = dev->config->config_info;
@@ -263,6 +267,95 @@ static int mcux_flexio_uart_init(struct device *dev)
 		return -EINVAL;
 	}
 
+	// Monkey patch the Tx timer for TX clk if used
+	if( config->tx_clk_pin_index != 0xFF)
+	{
+		LOG_INF("Using sychronous mode!");
+		/*
+		uint32_t timctl = config->base->flexioBase->TIMCTL[config->base->timerIndex[0]];
+		timctl &= ~(FLEXIO_TIMCTL_PINCFG_MASK | FLEXIO_TIMCTL_PINSEL_MASK | FLEXIO_TIMCTL_PINPOL_MASK);
+		timctl |= FLEXIO_TIMCTL_PINCFG(kFLEXIO_PinConfigOutput);
+		timctl |= FLEXIO_TIMCTL_PINSEL(config->tx_clk_pin_index);
+		timctl |= FLEXIO_TIMCTL_PINPOL(0);
+		config->base->flexioBase->TIMCTL[config->base->timerIndex[0]] = timctl;
+
+		uint32_t shiftctl = config->base->flexioBase->SHIFTCTL[config->base->shifterIndex[0]];
+		shiftctl &= ~(FLEXIO_SHIFTCTL_TIMPOL_MASK);
+		shiftctl |= FLEXIO_SHIFTCTL_TIMPOL(0);
+		config->base->flexioBase->SHIFTCTL[config->base->shifterIndex[0]] = shiftctl;
+		*/
+
+	    /*2. Configure the timer 0 for tx. */
+		flexio_timer_config_t timerConfig;
+		uint16_t timerDiv = 0;
+		uint16_t timerCmp = 0;
+		timerConfig.triggerSelect   = FLEXIO_TIMER_TRIGGER_SEL_SHIFTnSTAT(config->base->shifterIndex[0]);
+		timerConfig.triggerPolarity = kFLEXIO_TimerTriggerPolarityActiveLow;
+		timerConfig.triggerSource   = kFLEXIO_TimerTriggerSourceInternal;
+		timerConfig.pinConfig       = kFLEXIO_PinConfigOutputDisabled;
+		timerConfig.pinSelect       = config->tx_clk_pin_index;//config->base->TxPinIndex;
+		timerConfig.pinPolarity     = kFLEXIO_PinActiveLow;
+		timerConfig.timerMode       = kFLEXIO_TimerModeDual8BitBaudBit;
+		timerConfig.timerOutput     = kFLEXIO_TimerOutputOneNotAffectedByReset;
+		timerConfig.timerDecrement  = kFLEXIO_TimerDecSrcOnFlexIOClockShiftTimerOutput;
+		timerConfig.timerReset      = kFLEXIO_TimerResetNever;
+		timerConfig.timerDisable    = kFLEXIO_TimerDisableOnTimerCompare;
+		timerConfig.timerEnable     = kFLEXIO_TimerEnableOnPinRisingEdgeTriggerHigh;//kFLEXIO_TimerEnableOnTriggerHigh;
+		timerConfig.timerStop       = kFLEXIO_TimerStopBitEnableOnTimerDisable;
+		timerConfig.timerStart      = kFLEXIO_TimerStartBitEnabled;
+
+		timerDiv = clock_freq / config->baud_rate;
+		timerDiv = timerDiv / 2 - 1;
+
+		LOG_DBG("timer div = %d", timerDiv);
+
+		if (timerDiv > 0xFFU)
+		{
+			LOG_ERR("Failed to set timer!");
+		}
+
+		timerCmp = ((uint32_t)(uart_config.bitCountPerChar * 2 - 1)) << 8U;
+		timerCmp |= timerDiv;
+
+		timerConfig.timerCompare = timerCmp;
+
+		FLEXIO_SetTimerConfig(config->base->flexioBase, config->base->timerIndex[0], &timerConfig);
+
+	    /*Extra: Configurate a spare timer to generate the clock signal */
+
+		timerConfig.triggerSelect   = FLEXIO_TIMER_TRIGGER_SEL_SHIFTnSTAT(config->base->shifterIndex[0]);
+		timerConfig.triggerPolarity = kFLEXIO_TimerTriggerPolarityActiveLow;
+		timerConfig.triggerSource   = kFLEXIO_TimerTriggerSourceInternal;
+		timerConfig.pinConfig       = kFLEXIO_PinConfigOutput;
+		timerConfig.pinSelect       = config->tx_clk_pin_index;
+		timerConfig.pinPolarity     = kFLEXIO_PinActiveHigh;
+		timerConfig.timerMode       = kFLEXIO_TimerModeDual8BitBaudBit;
+		timerConfig.timerOutput     = kFLEXIO_TimerOutputOneNotAffectedByReset;
+		timerConfig.timerDecrement  = kFLEXIO_TimerDecSrcOnFlexIOClockShiftTimerOutput;
+		timerConfig.timerReset      = kFLEXIO_TimerResetNever;
+		timerConfig.timerDisable    = kFLEXIO_TimerDisableNever; //kFLEXIO_TimerDisableOnTimerCompare;
+		timerConfig.timerEnable     = kFLEXIO_TimerEnabledAlways;//kFLEXIO_TimerEnableOnTriggerHigh;
+		timerConfig.timerStop       = kFLEXIO_TimerStopBitDisabled;// kFLEXIO_TimerStopBitEnableOnTimerDisable;
+		timerConfig.timerStart      = kFLEXIO_TimerStartBitDisabled; // kFLEXIO_TimerStartBitEnabled
+
+
+
+		timerDiv = clock_freq / config->baud_rate;
+		timerDiv = timerDiv / 2 - 1;
+
+		if (timerDiv > 0xFFU)
+		{
+			LOG_ERR("Failed to set timer!");
+		}
+
+		timerCmp = ((uint32_t)(9 * 2 - 1)) << 8U;
+		timerCmp |= timerDiv;
+
+		timerConfig.timerCompare = timerCmp;
+
+    	FLEXIO_SetTimerConfig(config->base->flexioBase, 2, &timerConfig);
+
+	}
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	config->irq_config_func(dev);
 #endif
@@ -368,6 +461,16 @@ static FLEXIO_UART_Type uart_1_flexio_config = {
 
 static const struct mcux_flexio_uart_config mcux_flexio_uart_1_config = {
 	.base = &uart_1_flexio_config,
+#ifdef DT_INST_1_NXP_IMXRT_FLEXIO_UART_TXCLK_SIGNAL
+	.tx_clk_pin_index = DT_INST_1_NXP_IMXRT_FLEXIO_UART_TXCLK_SIGNAL,
+#else
+	.tx_clk_pin_index =	 0xFF,
+#endif
+#ifdef DT_INST_1_NXP_IMXRT_FLEXIO_UART_RXCLK_SIGNAL
+	.rx_clk_pin_index = DT_INST_1_NXP_IMXRT_FLEXIO_UART_RXCLK_SIGNAL,
+#else
+	.rx_clk_pin_index =	 0xFF,
+#endif
 	.clock_controller = DT_INST_1_NXP_IMXRT_FLEXIO_UART_CLOCK_CONTROLLER,
 	.clock_subsys =
 		(clock_control_subsys_t)DT_INST_1_NXP_IMXRT_FLEXIO_UART_CLOCK_NAME,

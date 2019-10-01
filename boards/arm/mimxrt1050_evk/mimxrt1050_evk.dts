@@ -138,11 +138,11 @@ arduino_serial: &uart3 {};
 
 &flexio2 {
 	status = "okay";
-	//current-speed = <1500000>;
-	current-speed = <115200>;
-	clock-config = <3 5 8>;
-	txd-signal = <5>;
-	rxd-signal = <6>;
-	//txclk-signal= <3>;
-	//rxclk-signal= <4>;
+	current-speed = <1500000>;
+	//current-speed = <115200>;
+	clock-config = <3 1 1>;
+	txd-signal = <6>;
+	txclk-signal= <7>;
+	rxd-signal = <8>;
+	//rxclk-signal= <9>;
 };
