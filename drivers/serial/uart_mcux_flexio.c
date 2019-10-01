@@ -271,19 +271,6 @@ static int mcux_flexio_uart_init(struct device *dev)
 	if( config->tx_clk_pin_index != 0xFF)
 	{
 		LOG_INF("Using sychronous mode!");
-		/*
-		uint32_t timctl = config->base->flexioBase->TIMCTL[config->base->timerIndex[0]];
-		timctl &= ~(FLEXIO_TIMCTL_PINCFG_MASK | FLEXIO_TIMCTL_PINSEL_MASK | FLEXIO_TIMCTL_PINPOL_MASK);
-		timctl |= FLEXIO_TIMCTL_PINCFG(kFLEXIO_PinConfigOutput);
-		timctl |= FLEXIO_TIMCTL_PINSEL(config->tx_clk_pin_index);
-		timctl |= FLEXIO_TIMCTL_PINPOL(0);
-		config->base->flexioBase->TIMCTL[config->base->timerIndex[0]] = timctl;
-
-		uint32_t shiftctl = config->base->flexioBase->SHIFTCTL[config->base->shifterIndex[0]];
-		shiftctl &= ~(FLEXIO_SHIFTCTL_TIMPOL_MASK);
-		shiftctl |= FLEXIO_SHIFTCTL_TIMPOL(0);
-		config->base->flexioBase->SHIFTCTL[config->base->shifterIndex[0]] = shiftctl;
-		*/
 
 	    /*2. Configure the timer 0 for tx. */
 		flexio_timer_config_t timerConfig;
