@@ -270,7 +270,7 @@ static int mcux_flexio_uart_init(struct device *dev)
 	// Monkey patch the Tx timer for TX clk if used
 	if( config->tx_clk_pin_index != 0xFF)
 	{
-		LOG_INF("Using sychronous mode!");
+		LOG_INF("Using sychronous TX mode!");
 
 	    /*2. Configure the timer 0 for tx. */
 		flexio_timer_config_t timerConfig;
@@ -343,6 +343,32 @@ static int mcux_flexio_uart_init(struct device *dev)
     	FLEXIO_SetTimerConfig(config->base->flexioBase, 2, &timerConfig);
 
 	}
+	
+	if( config->rx_clk_pin_index != 0xFF )
+	{
+
+		/* 4. Configure the Rx timer for Sychronous RX */
+		flexio_timer_config_t timerConfig;
+		timerConfig.triggerSelect   = FLEXIO_TIMER_TRIGGER_SEL_PININPUT(config->base->RxPinIndex);
+		timerConfig.triggerPolarity = kFLEXIO_TimerTriggerPolarityActiveLow;
+		timerConfig.triggerSource   = kFLEXIO_TimerTriggerSourceInternal;
+		timerConfig.pinConfig       = kFLEXIO_PinConfigOutputDisabled;
+		timerConfig.pinSelect       = config->rx_clk_pin_index;
+		timerConfig.pinPolarity     = kFLEXIO_PinActiveHigh;
+		timerConfig.timerMode       = kFLEXIO_TimerModeSingle16Bit;
+		timerConfig.timerOutput     = kFLEXIO_TimerOutputZeroNotAffectedByReset;
+		timerConfig.timerDecrement  = kFLEXIO_TimerDecSrcOnPinInputShiftPinInput;
+		timerConfig.timerReset      = kFLEXIO_TimerResetNever;
+		timerConfig.timerDisable    = kFLEXIO_TimerDisableOnTimerCompare;
+		timerConfig.timerEnable     = kFLEXIO_TimerEnableOnTriggerRisingEdge;
+		timerConfig.timerStop       = kFLEXIO_TimerStopBitEnableOnTimerDisable;
+		timerConfig.timerStart      = kFLEXIO_TimerStartBitEnabled;
+
+		timerConfig.timerCompare = uart_config.bitCountPerChar * 2 - 1U;
+
+		FLEXIO_SetTimerConfig(config->base->flexioBase, config->base->timerIndex[1], &timerConfig);
+	}
+
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	config->irq_config_func(dev);
 #endif
