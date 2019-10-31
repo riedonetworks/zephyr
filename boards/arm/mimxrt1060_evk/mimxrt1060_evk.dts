@@ -21,6 +21,7 @@
 		uart-1 = &uart1;
 		led0 = &green_led;
 		sw0 = &user_button;
+		spi-1 = &spi1;
 		eth = &eth;
 	};
 
@@ -92,6 +93,10 @@ arduino_serial: &uart3 {};
 &uart1 {
 	status = "okay";
 	current-speed = <115200>;
+};
+
+&spi1 {
+	status = "okay";
 };
 
 &eth {
