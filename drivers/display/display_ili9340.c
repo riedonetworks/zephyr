@@ -41,7 +41,7 @@ struct ili9340_data {
 
 #ifdef CONFIG_ILI9340_PARALLEL
 	volatile u8_t* data_reg;
-	volatile u8_t* cmd_reg;
+	volatile u64_t* cmd_reg;
 #endif
 
 #ifdef DT_INST_0_ILITEK_ILI9340_CS_GPIOS_CONTROLLER
@@ -102,6 +102,55 @@ static void ili9340_configure_semc()
 	}
 }
 
+static void ili9340_write_cmd_byte(struct ili9340_data *data, u8_t cmd)
+{
+#if 0
+	u64_t cmd_64 = ((u64_t)cmd)<<56;
+	SCB_DisableDCache();
+	__DMB();
+	*(data->cmd_reg) = cmd_64;
+	SCB_EnableDCache();
+#endif
+    //uint8_t dataSize  = SEMC->DBICR0 & SEMC_DBICR0_PS_MASK;
+	//SEMC_ConfigureIPCommand(SEMC, 1);
+
+	int result = SEMC_SendIPCommand(SEMC, kSEMC_MemType_8080, data->cmd_reg, kSEMC_NORDBICM_Write, cmd, NULL);
+	if (result != kStatus_Success)
+	{
+		LOG_ERR("Error on IPCommand!");
+	}
+
+
+	//SEMC_ConfigureIPCommand(base, dataSize);
+
+}
+
+static void ili9340_write_data(struct ili9340_data *data, void *tx_data, int tx_len)
+{
+	#if 0
+	SCB_DisableDCache();
+	__DMB();
+	u8_t* data_ptr = tx_data;
+	for(int i=0; i< tx_len; i++)
+	{
+		__DMB();
+		*(data->data_reg) = *data_ptr++;
+	}
+	SCB_EnableDCache();
+	#endif
+	int result;
+	u8_t* data_ptr = tx_data;
+	for(int i=0; i< tx_len; i++)
+	{
+		result = SEMC_SendIPCommand(SEMC, kSEMC_MemType_8080, data->data_reg, kSEMC_NORDBICM_Write, data_ptr[i], NULL);
+		if (result != kStatus_Success)
+		{
+			LOG_ERR("Error on IPCommand!");
+		}
+	}
+
+}
+
 static int ili9340_init(struct device *dev)
 {
 	struct ili9340_data *data = (struct ili9340_data *)dev->driver_data;
@@ -134,7 +183,7 @@ static int ili9340_init(struct device *dev)
 
 #ifdef CONFIG_ILI9340_PARALLEL
 	ili9340_configure_semc();
-	data->cmd_reg = (u8_t*)(DT_INST_0_ILITEK_ILI9340_PARALLEL_BASE_ADDRESS+0x10000);
+	data->cmd_reg = (void*)(DT_INST_0_ILITEK_ILI9340_PARALLEL_BASE_ADDRESS+0x10000);
 	data->data_reg = (u8_t*)DT_INST_0_ILITEK_ILI9340_PARALLEL_BASE_ADDRESS;
 
 	LOG_DBG("data register %p", data->data_reg);
@@ -282,14 +331,7 @@ static int ili9340_write(const struct device *dev, const u16_t x,
 		LOG_DBG("Write %d", write_cnt);
 		//SEMC_IPCommandNorWrite(SEMC, 0x10000, write_data_start, desc->width * ILI9340_RGB_SIZE * write_h);
 		
-		SCB_DisableDCache();
-		const u8_t* data_ptr = write_data_start;
-		for(int i=0; i< desc->width * ILI9340_RGB_SIZE * write_h; i++)
-		{
-			__DMB();
-			*(data->data_reg) = *data_ptr++;
-		}
-		SCB_EnableDCache();
+		ili9340_write_data(data, write_data_start, desc->width * ILI9340_RGB_SIZE * write_h);
 		write_data_start += (desc->pitch * ILI9340_RGB_SIZE);
 	}
 #endif
@@ -410,16 +452,8 @@ void ili9340_transmit(struct ili9340_data *data, u8_t cmd, void *tx_data,
 	//SEMC_IPCommandNorWrite(SEMC, data->cmd_reg, &cmd, 1);
 	//SEMC_IPCommandNorWrite(SEMC, data->data_reg, tx_data, tx_len);
 	
-	SCB_DisableDCache();
-	__DMB();
-	*data->cmd_reg = cmd;
-	u8_t* data_ptr = tx_data;
-	for(int i=0; i< tx_len; i++)
-	{
-		__DMB();
-		*(data->data_reg) = *data_ptr++;
-	}
-	SCB_EnableDCache();
+	ili9340_write_cmd_byte(data, cmd);
+	ili9340_write_data(data, tx_data, tx_len);
 #endif
 }
 
