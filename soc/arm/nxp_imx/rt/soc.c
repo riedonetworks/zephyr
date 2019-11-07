@@ -201,6 +201,12 @@ static ALWAYS_INLINE void clock_init(void)
 #endif
 #endif
 
+	/* AZEN: Clock for the SEMC */
+	CLOCK_EnableClock(kCLOCK_Semc);
+	//CLOCK_EnableClock(kCLOCK_SemcExsc);
+	CLOCK_SetMux(kCLOCK_SemcMux, 1);
+    CLOCK_SetDiv(kCLOCK_SemcDiv, 4);
+
 	/* Keep the system clock running so SYSTICK can wake up the system from
 	 * wfi.
 	 */

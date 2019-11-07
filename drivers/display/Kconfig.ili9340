@@ -8,7 +8,7 @@
 
 menuconfig ILI9340
 	bool "ILI9340 display driver"
-	depends on SPI
+	#depends on SPI
 	help
 	Enable driver for ILI9340 display driver.
 
@@ -43,5 +43,20 @@ config ILI9340_RGB565
 	bool "RGB565"
 
 endchoice
+
+choice
+	prompt "display interface"
+	default ILI9340_SPI
+	help
+	Specify the MCU interface to use
+
+config ILI9340_SPI
+	bool "SPI"
+
+config ILI9340_PARALLEL
+	bool "8bit 8080 parallel interface (CS/WRX/RDX/DCX)"
+
+endchoice
+
 
 endif #ILI9340

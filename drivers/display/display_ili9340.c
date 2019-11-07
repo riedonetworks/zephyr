@@ -16,14 +16,34 @@ LOG_MODULE_REGISTER(display_ili9340);
 #include <sys/byteorder.h>
 #include <drivers/spi.h>
 #include <string.h>
+#include <arch/cpu.h>
+#include <soc.h>
+
+
+#if defined(CONFIG_ILI9340_SPI)
+#warning ILI9340 SPI mode
+#elif defined(CONFIG_ILI9340_PARALLEL)
+#warning ILI9340 Parallel mode
+#include <fsl_semc.h>
+#else
+#error ILI9340 mode undefined!
+#endif
 
 struct ili9340_data {
-#ifdef DT_INST_0_ILITEK_ILI9340_RESET_GPIOS_CONTROLLER
+#if defined(DT_INST_0_ILITEK_ILI9340_RESET_GPIOS_CONTROLLER) || defined(DT_INST_0_ILITEK_ILI9340_PARALLEL_RESET_GPIOS_CONTROLLER)
 	struct device *reset_gpio;
 #endif
+#ifdef CONFIG_ILI9340_SPI
 	struct device *command_data_gpio;
 	struct device *spi_dev;
 	struct spi_config spi_config;
+#endif
+
+#ifdef CONFIG_ILI9340_PARALLEL
+	volatile u8_t* data_reg;
+	volatile u8_t* cmd_reg;
+#endif
+
 #ifdef DT_INST_0_ILITEK_ILI9340_CS_GPIOS_CONTROLLER
 	struct spi_cs_control cs_ctrl;
 #endif
@@ -45,11 +65,50 @@ static void ili9340_exit_sleep(struct ili9340_data *data)
 	k_sleep(K_MSEC(120));
 }
 
+static void ili9340_configure_semc()
+{
+	/* Init SEMC perfieral */
+	semc_config_t semc_config;
+	SEMC_GetDefaultConfig(&semc_config);
+    //semc_config.dqsMode = kSEMC_Loopbackinternal; /* For more accurate timing. */
+	//semc_config.cmdTimeoutCycles = 0;
+    //semc_config.busTimeoutCycles = 0;
+    SEMC_Init(SEMC, &semc_config);
+
+	/* Configure the SEMC module to inteface to the display, "DBI" mode */
+	status_t config_res;
+	semc_dbi_config_t dbi_config;
+	dbi_config.csxPinMux = kSEMC_MUXA8;
+	dbi_config.address = DT_INST_0_ILITEK_ILI9340_PARALLEL_BASE_ADDRESS;
+	dbi_config.memsize_kbytes = 128;
+	dbi_config.columnAddrBitNum = kSEMC_Dbi_Colum_9bit;
+	dbi_config.burstLen = kSEMC_Dbi_BurstLen1;
+	dbi_config.portSize = kSEMC_PortSize8Bit;
+	dbi_config.tCsxSetup_Ns = 100;//50;
+	dbi_config.tCsxHold_Ns = 100;//50;
+	dbi_config.tWexLow_Ns = 100;//40;
+	dbi_config.tWexHigh_Ns = 100;//40;
+	dbi_config.tRdxLow_Ns = 100;//90;
+	dbi_config.tRdxHigh_Ns = 100;//70;
+	dbi_config.tCsxInterval_Ns = 100;//50;
+	config_res = SEMC_ConfigureDBI(SEMC, &dbi_config, CLOCK_GetFreq(kCLOCK_SemcClk));
+	if(config_res != kStatus_Success)
+	{
+		LOG_ERR("Error: Failed to initialize SEMC DBI!");
+	}
+	else
+	{
+		LOG_DBG("SMEC-DBI initialized!");
+	}
+}
+
 static int ili9340_init(struct device *dev)
 {
 	struct ili9340_data *data = (struct ili9340_data *)dev->driver_data;
 
 	LOG_DBG("Initializing display driver");
+
+#ifdef CONFIG_ILI9340_SPI
 
 	data->spi_dev = device_get_binding(DT_INST_0_ILITEK_ILI9340_BUS_NAME);
 	if (data->spi_dev == NULL) {
@@ -61,6 +120,7 @@ static int ili9340_init(struct device *dev)
 	data->spi_config.operation = SPI_OP_MODE_MASTER | SPI_WORD_SET(8);
 	data->spi_config.slave = DT_INST_0_ILITEK_ILI9340_BASE_ADDRESS;
 
+
 #ifdef DT_INST_0_ILITEK_ILI9340_CS_GPIOS_CONTROLLER
 	data->cs_ctrl.gpio_dev =
 		device_get_binding(DT_INST_0_ILITEK_ILI9340_CS_GPIOS_CONTROLLER);
@@ -70,6 +130,23 @@ static int ili9340_init(struct device *dev)
 #else
 	data->spi_config.cs = NULL;
 #endif
+#endif
+
+#ifdef CONFIG_ILI9340_PARALLEL
+	ili9340_configure_semc();
+	data->cmd_reg = (u8_t*)(DT_INST_0_ILITEK_ILI9340_PARALLEL_BASE_ADDRESS+0x10000);
+	data->data_reg = (u8_t*)DT_INST_0_ILITEK_ILI9340_PARALLEL_BASE_ADDRESS;
+
+	LOG_DBG("data register %p", data->data_reg);
+	LOG_DBG("command register %p", data->cmd_reg);
+
+	LOG_HEXDUMP_DBG((void*)&SEMC->MCR, 4, "SMEC->MCR");
+	LOG_HEXDUMP_DBG((void*)&SEMC->IOCR, 4, "SMEC->IOCR");
+	LOG_HEXDUMP_DBG((void*)&SEMC->BR[7], 4, "SMEC->BR[7]");
+	LOG_HEXDUMP_DBG((void*)&SEMC->DBICR0, 4, "SMEC->DBICR0");
+	LOG_HEXDUMP_DBG((void*)&SEMC->DBICR1, 4, "SMEC->DBICR1");
+#endif
+
 
 #ifdef DT_INST_0_ILITEK_ILI9340_RESET_GPIOS_CONTROLLER
 	data->reset_gpio =
@@ -83,6 +160,20 @@ static int ili9340_init(struct device *dev)
 			   GPIO_DIR_OUT);
 #endif
 
+#ifdef DT_INST_0_ILITEK_ILI9340_PARALLEL_RESET_GPIOS_CONTROLLER
+	data->reset_gpio =
+		device_get_binding(DT_INST_0_ILITEK_ILI9340_PARALLEL_RESET_GPIOS_CONTROLLER);
+	if (data->reset_gpio == NULL) {
+		LOG_ERR("Could not get GPIO port for ILI9340 reset");
+		return -EPERM;
+	}
+
+	gpio_pin_configure(data->reset_gpio, DT_INST_0_ILITEK_ILI9340_PARALLEL_RESET_GPIOS_PIN,
+			   GPIO_DIR_OUT);
+#endif
+
+#ifdef CONFIG_ILI9340_SPI
+
 	data->command_data_gpio =
 		device_get_binding(DT_INST_0_ILITEK_ILI9340_CMD_DATA_GPIOS_CONTROLLER);
 	if (data->command_data_gpio == NULL) {
@@ -92,6 +183,7 @@ static int ili9340_init(struct device *dev)
 
 	gpio_pin_configure(data->command_data_gpio, DT_INST_0_ILITEK_ILI9340_CMD_DATA_GPIOS_PIN,
 			   GPIO_DIR_OUT);
+#endif
 
 #ifdef DT_INST_0_ILITEK_ILI9340_RESET_GPIOS_CONTROLLER
 	LOG_DBG("Resetting display driver");
@@ -101,6 +193,16 @@ static int ili9340_init(struct device *dev)
 	k_sleep(K_MSEC(1));
 	gpio_pin_write(data->reset_gpio, DT_INST_0_ILITEK_ILI9340_RESET_GPIOS_PIN, 1);
 	k_sleep(K_MSEC(5));
+#endif
+
+#ifdef DT_INST_0_ILITEK_ILI9340_PARALLEL_RESET_GPIOS_CONTROLLER
+	LOG_DBG("Resetting display driver");
+	gpio_pin_write(data->reset_gpio, DT_INST_0_ILITEK_ILI9340_PARALLEL_RESET_GPIOS_PIN, 1);
+	k_sleep(1);
+	gpio_pin_write(data->reset_gpio, DT_INST_0_ILITEK_ILI9340_PARALLEL_RESET_GPIOS_PIN, 0);
+	k_sleep(1);
+	gpio_pin_write(data->reset_gpio, DT_INST_0_ILITEK_ILI9340_PARALLEL_RESET_GPIOS_PIN, 1);
+	k_sleep(5);
 #endif
 
 	LOG_DBG("Initializing LCD");
@@ -133,8 +235,10 @@ static int ili9340_write(const struct device *dev, const u16_t x,
 {
 	struct ili9340_data *data = (struct ili9340_data *)dev->driver_data;
 	const u8_t *write_data_start = (u8_t *) buf;
+#ifdef CONFIG_ILI9340_SPI
 	struct spi_buf tx_buf;
 	struct spi_buf_set tx_bufs;
+#endif
 	u16_t write_cnt;
 	u16_t nbr_of_writes;
 	u16_t write_h;
@@ -159,6 +263,7 @@ static int ili9340_write(const struct device *dev, const u16_t x,
 			 (void *) write_data_start,
 			 desc->width * ILI9340_RGB_SIZE * write_h);
 
+#ifdef CONFIG_ILI9340_SPI
 	tx_bufs.buffers = &tx_buf;
 	tx_bufs.count = 1;
 
@@ -169,6 +274,25 @@ static int ili9340_write(const struct device *dev, const u16_t x,
 		spi_write(data->spi_dev, &data->spi_config, &tx_bufs);
 		write_data_start += (desc->pitch * ILI9340_RGB_SIZE);
 	}
+#endif
+#ifdef CONFIG_ILI9340_PARALLEL
+	
+	write_data_start += (desc->pitch * ILI9340_RGB_SIZE);
+	for (write_cnt = 1U; write_cnt < nbr_of_writes; ++write_cnt) {
+		LOG_DBG("Write %d", write_cnt);
+		//SEMC_IPCommandNorWrite(SEMC, 0x10000, write_data_start, desc->width * ILI9340_RGB_SIZE * write_h);
+		
+		SCB_DisableDCache();
+		const u8_t* data_ptr = write_data_start;
+		for(int i=0; i< desc->width * ILI9340_RGB_SIZE * write_h; i++)
+		{
+			__DMB();
+			*(data->data_reg) = *data_ptr++;
+		}
+		SCB_EnableDCache();
+		write_data_start += (desc->pitch * ILI9340_RGB_SIZE);
+	}
+#endif
 
 	return 0;
 }
@@ -263,6 +387,7 @@ static void ili9340_get_capabilities(const struct device *dev,
 void ili9340_transmit(struct ili9340_data *data, u8_t cmd, void *tx_data,
 		      size_t tx_len)
 {
+#ifdef CONFIG_ILI9340_SPI
 	struct spi_buf tx_buf = { .buf = &cmd, .len = 1 };
 	struct spi_buf_set tx_bufs = { .buffers = &tx_buf, .count = 1 };
 
@@ -278,6 +403,24 @@ void ili9340_transmit(struct ili9340_data *data, u8_t cmd, void *tx_data,
 			       ILI9340_CMD_DATA_PIN_DATA);
 		spi_write(data->spi_dev, &data->spi_config, &tx_bufs);
 	}
+#endif
+#ifdef CONFIG_ILI9340_PARALLEL
+	LOG_DBG("cmd: 0x%02X, size: %d", cmd, tx_len);
+
+	//SEMC_IPCommandNorWrite(SEMC, data->cmd_reg, &cmd, 1);
+	//SEMC_IPCommandNorWrite(SEMC, data->data_reg, tx_data, tx_len);
+	
+	SCB_DisableDCache();
+	__DMB();
+	*data->cmd_reg = cmd;
+	u8_t* data_ptr = tx_data;
+	for(int i=0; i< tx_len; i++)
+	{
+		__DMB();
+		*(data->data_reg) = *data_ptr++;
+	}
+	SCB_EnableDCache();
+#endif
 }
 
 static const struct display_driver_api ili9340_api = {
@@ -295,6 +438,14 @@ static const struct display_driver_api ili9340_api = {
 
 static struct ili9340_data ili9340_data;
 
+#ifdef DT_INST_0_ILITEK_ILI9340_LABEL
 DEVICE_AND_API_INIT(ili9340, DT_INST_0_ILITEK_ILI9340_LABEL, &ili9340_init,
 		    &ili9340_data, NULL, APPLICATION,
 		    CONFIG_APPLICATION_INIT_PRIORITY, &ili9340_api);
+#endif
+
+#ifdef DT_INST_0_ILITEK_ILI9340_PARALLEL_LABEL
+DEVICE_AND_API_INIT(ili9340, DT_INST_0_ILITEK_ILI9340_PARALLEL_LABEL, &ili9340_init,
+		    &ili9340_data, NULL, APPLICATION,
+		    CONFIG_APPLICATION_INIT_PRIORITY, &ili9340_api);
+#endif
