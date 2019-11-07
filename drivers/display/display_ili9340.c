@@ -40,7 +40,7 @@ struct ili9340_data {
 #endif
 
 #ifdef CONFIG_ILI9340_PARALLEL
-	volatile u8_t* data_reg;
+	volatile u64_t* data_reg;
 	volatile u64_t* cmd_reg;
 #endif
 
@@ -84,13 +84,13 @@ static void ili9340_configure_semc()
 	dbi_config.columnAddrBitNum = kSEMC_Dbi_Colum_9bit;
 	dbi_config.burstLen = kSEMC_Dbi_BurstLen1;
 	dbi_config.portSize = kSEMC_PortSize8Bit;
-	dbi_config.tCsxSetup_Ns = 100;//50;
-	dbi_config.tCsxHold_Ns = 100;//50;
-	dbi_config.tWexLow_Ns = 100;//40;
-	dbi_config.tWexHigh_Ns = 100;//40;
-	dbi_config.tRdxLow_Ns = 100;//90;
-	dbi_config.tRdxHigh_Ns = 100;//70;
-	dbi_config.tCsxInterval_Ns = 100;//50;
+	dbi_config.tCsxSetup_Ns = 15;
+	dbi_config.tCsxHold_Ns = 10;
+	dbi_config.tWexLow_Ns = 35;
+	dbi_config.tWexHigh_Ns = 35;
+	dbi_config.tRdxLow_Ns = 250;
+	dbi_config.tRdxHigh_Ns = 250;
+	dbi_config.tCsxInterval_Ns = 0;
 	config_res = SEMC_ConfigureDBI(SEMC, &dbi_config, CLOCK_GetFreq(kCLOCK_SemcClk));
 	if(config_res != kStatus_Success)
 	{
@@ -139,13 +139,34 @@ static void ili9340_write_data(struct ili9340_data *data, void *tx_data, int tx_
 	SCB_EnableDCache();
 	#endif
 	int result;
-	u8_t* data_ptr = tx_data;
-	for(int i=0; i< tx_len; i++)
+	
+	if( tx_len > sizeof(u64_t))
 	{
-		result = SEMC_SendIPCommand(SEMC, kSEMC_MemType_8080, data->data_reg, kSEMC_NORDBICM_Write, data_ptr[i], NULL);
-		if (result != kStatus_Success)
+		LOG_DBG("Writing %d bytes over AXI bus", tx_len);
+		u64_t* data_ptr64 = tx_data;
+		SCB_DisableDCache();
+		__DMB();
+		while(tx_len > sizeof(u64_t))
 		{
-			LOG_ERR("Error on IPCommand!");
+			__DMB();
+			*(data->data_reg) = *data_ptr64++;
+			tx_len -= sizeof(u64_t);
+		}
+		SCB_EnableDCache();
+	}
+
+	if (tx_len)
+	{
+		LOG_DBG("Writing %d bytes over IP bus", tx_len);
+		// Send out, 8 bit mode
+		u8_t* data_ptr8 = tx_data;
+		for(int i=0; i< tx_len; i++)
+		{
+			result = SEMC_SendIPCommand(SEMC, kSEMC_MemType_8080, data->data_reg, kSEMC_NORDBICM_Write, data_ptr8[i], NULL);
+			if (result != kStatus_Success)
+			{
+				LOG_ERR("Error on IPCommand!");
+			}
 		}
 	}
 
