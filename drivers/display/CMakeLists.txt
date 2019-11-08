@@ -29,3 +29,8 @@ zephyr_sources_ifdef(CONFIG_ST7789V_LCD_TL019FQV01
 zephyr_sources_ifdef(CONFIG_ILI9340_LCD_WINSTAR_WF24LTYAJDNN0
 	display_ili9340_WF24LTYAJDNN0.c
 )
+
+
+zephyr_sources_ifdef(CONFIG_ILI9340_LCD_TIANMA_TM024HDH49
+	display_ili9340_TM024HDH49.c
+)
