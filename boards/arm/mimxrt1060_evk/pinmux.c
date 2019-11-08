@@ -89,6 +89,66 @@ static int mimxrt1060_evk_init(struct device *dev)
 			    IOMUXC_SW_PAD_CTL_PAD_DSE(6));
 #endif
 
+#ifdef CONFIG_SPI_1
+#ifdef CONFIG_DISK_ACCESS_USDHC1
+#error Can not use uSDHC1 and SPI-1 at the same time on this board!
+#endif
+	IOMUXC_SetPinMux(
+		IOMUXC_GPIO_SD_B0_00_LPSPI1_SCK,        /* GPIO_SD_B0_00 is configured as LPSPI1_SCK */
+		0U);                                    /* Software Input On Field: Input Path is determined by functionality */
+	IOMUXC_SetPinMux(
+		IOMUXC_GPIO_SD_B0_01_LPSPI1_PCS0,       /* GPIO_SD_B0_01 is configured as LPSPI1_PCS0 */
+		0U);                                    /* Software Input On Field: Input Path is determined by functionality */
+	IOMUXC_SetPinMux(
+		IOMUXC_GPIO_SD_B0_02_LPSPI1_SDO,        /* GPIO_SD_B0_02 is configured as LPSPI1_SDO */
+		0U);                                    /* Software Input On Field: Input Path is determined by functionality */
+	IOMUXC_SetPinMux(
+		IOMUXC_GPIO_SD_B0_03_LPSPI1_SDI,        /* GPIO_SD_B0_03 is configured as LPSPI1_SDI */
+		0U);                                    /* Software Input On Field: Input Path is determined by functionality */
+
+  	IOMUXC_SetPinConfig(
+		IOMUXC_GPIO_SD_B0_00_LPSPI1_SCK,        /* GPIO_SD_B0_00 PAD functional properties : */
+		0x10F0U);                               /* Slew Rate Field: Slow Slew Rate
+                                                 Drive Strength Field: R0/6
+                                                 Speed Field: max(200MHz)
+                                                 Open Drain Enable Field: Open Drain Disabled
+                                                 Pull / Keep Enable Field: Pull/Keeper Enabled
+                                                 Pull / Keep Select Field: Keeper
+                                                 Pull Up / Down Config. Field: 100K Ohm Pull Down
+                                                 Hyst. Enable Field: Hysteresis Disabled */
+  	IOMUXC_SetPinConfig(
+      	IOMUXC_GPIO_SD_B0_01_LPSPI1_PCS0,       /* GPIO_SD_B0_01 PAD functional properties : */
+      	0x70F0U);                               /* Slew Rate Field: Slow Slew Rate
+                                                 Drive Strength Field: R0/6
+                                                 Speed Field: max(200MHz)
+                                                 Open Drain Enable Field: Open Drain Disabled
+                                                 Pull / Keep Enable Field: Pull/Keeper Enabled
+                                                 Pull / Keep Select Field: Pull
+                                                 Pull Up / Down Config. Field: 47K Ohm Pull Up
+                                                 Hyst. Enable Field: Hysteresis Disabled */
+  	IOMUXC_SetPinConfig(
+      	IOMUXC_GPIO_SD_B0_02_LPSPI1_SDO,        /* GPIO_SD_B0_02 PAD functional properties : */
+      	0x10F0U);                               /* Slew Rate Field: Slow Slew Rate
+                                                 Drive Strength Field: R0/6
+                                                 Speed Field: max(200MHz)
+                                                 Open Drain Enable Field: Open Drain Disabled
+                                                 Pull / Keep Enable Field: Pull/Keeper Enabled
+                                                 Pull / Keep Select Field: Keeper
+                                                 Pull Up / Down Config. Field: 100K Ohm Pull Down
+                                                 Hyst. Enable Field: Hysteresis Disabled */
+
+  	IOMUXC_SetPinConfig(
+      	IOMUXC_GPIO_SD_B0_03_LPSPI1_SDI,      /* GPIO_SD_B0_03 PAD functional properties : */
+      	0x10F0U);                               /* Slew Rate Field: Slow Slew Rate
+                                                 Drive Strength Field: R0/6
+                                                 Speed Field: max(200MHz)
+                                                 Open Drain Enable Field: Open Drain Disabled
+                                                 Pull / Keep Enable Field: Pull/Keeper Enabled
+                                                 Pull / Keep Select Field: Keeper
+                                                 Pull Up / Down Config. Field: 100K Ohm Pull Down
+                                                 Hyst. Enable Field: Hysteresis Disabled */
+#endif
+
 #ifdef CONFIG_ETH_MCUX_0
 	IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B0_09_GPIO1_IO09, 0U);
 	IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B0_10_GPIO1_IO10, 0U);
@@ -185,6 +245,50 @@ static int mimxrt1060_evk_init(struct device *dev)
 	config.outputLogic = 1;
 	GPIO_PinInit(GPIO2, 31, &config);
 #endif
+
+	/* AZEN Config pull-up for the buttons */
+	IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B1_11_GPIO1_IO27, 0);
+	IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_B1_11_GPIO1_IO27, 
+		IOMUXC_SW_PAD_CTL_PAD_SPEED(0) |
+		IOMUXC_SW_PAD_CTL_PAD_DSE(1)	 // 150Ohm drive strength
+	);
+	
+	IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B1_04_GPIO1_IO20, 0);
+	IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_B1_04_GPIO1_IO20, 
+		IOMUXC_SW_PAD_CTL_PAD_SPEED(0) |
+		IOMUXC_SW_PAD_CTL_PAD_PKE_MASK | // Pull-up/keeper enable
+		IOMUXC_SW_PAD_CTL_PAD_PUE_MASK | // Pull
+		IOMUXC_SW_PAD_CTL_PAD_HYS_MASK | // Hysteresis eneable
+		IOMUXC_SW_PAD_CTL_PAD_PUS(2) |	 // 100K pull-up
+		IOMUXC_SW_PAD_CTL_PAD_DSE(0)	 // Disable output driver
+	);
+	IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B1_05_GPIO1_IO21, 0);
+	IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_B1_05_GPIO1_IO21,
+		IOMUXC_SW_PAD_CTL_PAD_SPEED(0) |
+		IOMUXC_SW_PAD_CTL_PAD_PKE_MASK | // Pull-up/keeper enable
+		IOMUXC_SW_PAD_CTL_PAD_PUE_MASK | // Pull
+		IOMUXC_SW_PAD_CTL_PAD_HYS_MASK | // Hysteresis eneable
+		IOMUXC_SW_PAD_CTL_PAD_PUS(2) |	 // 100K pull-up
+		IOMUXC_SW_PAD_CTL_PAD_DSE(0)	 // Disable output driver
+	);
+	IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B1_01_GPIO1_IO17, 0);
+	IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_B1_01_GPIO1_IO17,
+		IOMUXC_SW_PAD_CTL_PAD_SPEED(0) |
+		IOMUXC_SW_PAD_CTL_PAD_PKE_MASK | // Pull-up/keeper enable
+		IOMUXC_SW_PAD_CTL_PAD_PUE_MASK | // Pull
+		IOMUXC_SW_PAD_CTL_PAD_HYS_MASK | // Hysteresis eneable
+		IOMUXC_SW_PAD_CTL_PAD_PUS(2) |	 // 100K pull-up
+		IOMUXC_SW_PAD_CTL_PAD_DSE(0)	 // Disable output driver
+	);
+	IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B1_00_GPIO1_IO16, 0);
+	IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_B1_00_GPIO1_IO16,
+		IOMUXC_SW_PAD_CTL_PAD_SPEED(0) |
+		IOMUXC_SW_PAD_CTL_PAD_PKE_MASK | // Pull-up/keeper enable
+		IOMUXC_SW_PAD_CTL_PAD_PUE_MASK | // Pull
+		IOMUXC_SW_PAD_CTL_PAD_HYS_MASK | // Hysteresis eneable
+		IOMUXC_SW_PAD_CTL_PAD_PUS(2) |	 // 100K pull-up
+		IOMUXC_SW_PAD_CTL_PAD_DSE(0)	 // Disable output driver
+	);
 
 	return 0;
 }

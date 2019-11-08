@@ -304,6 +304,50 @@ static int mimxrt1050_evk_init(struct device *dev)
 	imxrt_usdhc_pinmux_cb_register(mimxrt1050_evk_usdhc_pinmux);
 #endif
 
+	/* AZEN Config pull-up for the buttons */
+	IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B1_11_GPIO1_IO27, 0);
+	IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_B1_11_GPIO1_IO27, 
+		IOMUXC_SW_PAD_CTL_PAD_SPEED(0) |
+		IOMUXC_SW_PAD_CTL_PAD_DSE(1)	 // 150Ohm drive strength
+	);
+	
+	IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B1_04_GPIO1_IO20, 0);
+	IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_B1_04_GPIO1_IO20, 
+		IOMUXC_SW_PAD_CTL_PAD_SPEED(0) |
+		IOMUXC_SW_PAD_CTL_PAD_PKE_MASK | // Pull-up/keeper enable
+		IOMUXC_SW_PAD_CTL_PAD_PUE_MASK | // Pull
+		IOMUXC_SW_PAD_CTL_PAD_HYS_MASK | // Hysteresis eneable
+		IOMUXC_SW_PAD_CTL_PAD_PUS(2) |	 // 100K pull-up
+		IOMUXC_SW_PAD_CTL_PAD_DSE(0)	 // Disable output driver
+	);
+	IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B1_05_GPIO1_IO21, 0);
+	IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_B1_05_GPIO1_IO21,
+		IOMUXC_SW_PAD_CTL_PAD_SPEED(0) |
+		IOMUXC_SW_PAD_CTL_PAD_PKE_MASK | // Pull-up/keeper enable
+		IOMUXC_SW_PAD_CTL_PAD_PUE_MASK | // Pull
+		IOMUXC_SW_PAD_CTL_PAD_HYS_MASK | // Hysteresis eneable
+		IOMUXC_SW_PAD_CTL_PAD_PUS(2) |	 // 100K pull-up
+		IOMUXC_SW_PAD_CTL_PAD_DSE(0)	 // Disable output driver
+	);
+	IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B1_01_GPIO1_IO17, 0);
+	IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_B1_01_GPIO1_IO17,
+		IOMUXC_SW_PAD_CTL_PAD_SPEED(0) |
+		IOMUXC_SW_PAD_CTL_PAD_PKE_MASK | // Pull-up/keeper enable
+		IOMUXC_SW_PAD_CTL_PAD_PUE_MASK | // Pull
+		IOMUXC_SW_PAD_CTL_PAD_HYS_MASK | // Hysteresis eneable
+		IOMUXC_SW_PAD_CTL_PAD_PUS(2) |	 // 100K pull-up
+		IOMUXC_SW_PAD_CTL_PAD_DSE(0)	 // Disable output driver
+	);
+	IOMUXC_SetPinMux(IOMUXC_GPIO_AD_B1_00_GPIO1_IO16, 0);
+	IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_B1_00_GPIO1_IO16,
+		IOMUXC_SW_PAD_CTL_PAD_SPEED(0) |
+		IOMUXC_SW_PAD_CTL_PAD_PKE_MASK | // Pull-up/keeper enable
+		IOMUXC_SW_PAD_CTL_PAD_PUE_MASK | // Pull
+		IOMUXC_SW_PAD_CTL_PAD_HYS_MASK | // Hysteresis eneable
+		IOMUXC_SW_PAD_CTL_PAD_PUS(2) |	 // 100K pull-up
+		IOMUXC_SW_PAD_CTL_PAD_DSE(0)	 // Disable output driver
+	);
+
 	return 0;
 }
 
