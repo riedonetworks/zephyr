@@ -64,7 +64,7 @@ static void ili9340_exit_sleep(struct ili9340_data *data)
 	ili9340_transmit(data, ILI9340_CMD_EXIT_SLEEP, NULL, 0);
 	k_sleep(K_MSEC(120));
 }
-
+#ifdef CONFIG_ILI9340_PARALLEL
 static void ili9340_configure_semc()
 {
 	/* Init SEMC perfieral */
@@ -171,6 +171,8 @@ static void ili9340_write_data(struct ili9340_data *data, void *tx_data, int tx_
 	}
 
 }
+
+#endif
 
 static int ili9340_init(struct device *dev)
 {
