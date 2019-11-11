@@ -181,6 +181,11 @@ static int spi_mcux_configure(struct device *dev,
 		return -EINVAL;
 	}
 
+    master_config.pcsToSckDelayInNanoSec        = 0;
+    master_config.lastSckToPcsDelayInNanoSec    = 0;
+    master_config.betweenTransferDelayInNanoSec = 0;
+	master_config.dataOutConfig = kLpspiDataOutTristate;
+
 	LPSPI_MasterInit(base, &master_config, clock_freq);
 
 	LPSPI_MasterTransferCreateHandle(base, &data->handle,

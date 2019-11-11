@@ -138,7 +138,7 @@ static int ws2812_strip_update_rgb(struct device *dev, struct led_rgb *pixels,
 		return rc;
 	}
 
-	return ws2812_reset_strip(drv_data);
+	return rc; //ws2812_reset_strip(drv_data);
 }
 
 static int ws2812_strip_update_channels(struct device *dev, u8_t *channels,
