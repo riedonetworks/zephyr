@@ -8,7 +8,6 @@
 #include <stddef.h>
 
 
-#warning FG0204L0DSSWMG01 init
 void st7789v_lcd_init(struct st7789v_data *p_st7789v)
 {
     u8_t cmd;

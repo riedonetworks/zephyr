@@ -114,7 +114,7 @@ static void ili9340_write_cmd_byte(struct ili9340_data *data, u8_t cmd)
     //uint8_t dataSize  = SEMC->DBICR0 & SEMC_DBICR0_PS_MASK;
 	//SEMC_ConfigureIPCommand(SEMC, 1);
 
-	int result = SEMC_SendIPCommand(SEMC, kSEMC_MemType_8080, data->cmd_reg, kSEMC_NORDBICM_Write, cmd, NULL);
+	int result = SEMC_SendIPCommand(SEMC, kSEMC_MemType_8080, (uint32_t)data->cmd_reg, kSEMC_NORDBICM_Write, cmd, NULL);
 	if (result != kStatus_Success)
 	{
 		LOG_ERR("Error on IPCommand!");
@@ -139,11 +139,12 @@ static void ili9340_write_data(struct ili9340_data *data, void *tx_data, int tx_
 	SCB_EnableDCache();
 	#endif
 	int result;
+	u64_t* data_ptr64 = tx_data;
 	
 	if( tx_len > sizeof(u64_t))
 	{
 		LOG_DBG("Writing %d bytes over AXI bus", tx_len);
-		u64_t* data_ptr64 = tx_data;
+		
 		SCB_DisableDCache();
 		__DMB();
 		while(tx_len > sizeof(u64_t))
@@ -159,10 +160,10 @@ static void ili9340_write_data(struct ili9340_data *data, void *tx_data, int tx_
 	{
 		LOG_DBG("Writing %d bytes over IP bus", tx_len);
 		// Send out, 8 bit mode
-		u8_t* data_ptr8 = tx_data;
+		u8_t* data_ptr8 = (u8_t*)data_ptr64;
 		for(int i=0; i< tx_len; i++)
 		{
-			result = SEMC_SendIPCommand(SEMC, kSEMC_MemType_8080, data->data_reg, kSEMC_NORDBICM_Write, data_ptr8[i], NULL);
+			result = SEMC_SendIPCommand(SEMC, kSEMC_MemType_8080, (uint32_t)data->data_reg, kSEMC_NORDBICM_Write, data_ptr8[i], NULL);
 			if (result != kStatus_Success)
 			{
 				LOG_ERR("Error on IPCommand!");
@@ -207,7 +208,7 @@ static int ili9340_init(struct device *dev)
 #ifdef CONFIG_ILI9340_PARALLEL
 	ili9340_configure_semc();
 	data->cmd_reg = (void*)(DT_INST_0_ILITEK_ILI9340_PARALLEL_BASE_ADDRESS+0x10000);
-	data->data_reg = (u8_t*)DT_INST_0_ILITEK_ILI9340_PARALLEL_BASE_ADDRESS;
+	data->data_reg = (void*)DT_INST_0_ILITEK_ILI9340_PARALLEL_BASE_ADDRESS;
 
 	LOG_DBG("data register %p", data->data_reg);
 	LOG_DBG("command register %p", data->cmd_reg);
@@ -354,7 +355,7 @@ static int ili9340_write(const struct device *dev, const u16_t x,
 		LOG_DBG("Write %d", write_cnt);
 		//SEMC_IPCommandNorWrite(SEMC, 0x10000, write_data_start, desc->width * ILI9340_RGB_SIZE * write_h);
 		
-		ili9340_write_data(data, write_data_start, desc->width * ILI9340_RGB_SIZE * write_h);
+		ili9340_write_data(data, (void*)write_data_start, desc->width * ILI9340_RGB_SIZE * write_h);
 		write_data_start += (desc->pitch * ILI9340_RGB_SIZE);
 	}
 #endif

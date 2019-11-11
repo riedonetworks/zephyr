@@ -159,7 +159,7 @@ static void st7789v_write_data(struct st7789v_data *data, void *tx_data, int tx_
 	{
 		LOG_DBG("Writing %d bytes over IP bus", tx_len);
 		// Send out, 8 bit mode
-		u8_t* data_ptr8 = data_ptr64;
+		u8_t* data_ptr8 = (u8_t*)data_ptr64;
 		for(int i=0; i< tx_len; i++)
 		{
 			result = SEMC_SendIPCommand(SEMC, kSEMC_MemType_8080, (uint32_t)data->data_reg, kSEMC_NORDBICM_Write, data_ptr8[i], NULL);

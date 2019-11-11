@@ -34,7 +34,7 @@ void ili9340_lcd_init(struct ili9340_data *p_ili9340)
 
 	cmd = 0xb1;    //Frame Rate Control (In Normal Mode/Full Colors)
 	data[0] = (0);
-	data[1] = (0x1B);
+	data[1] = 0x1D;//(0x1B);
 	ili9340_transmit(p_ili9340, cmd, data, 2);
 
 	cmd = 0xb6;    // Display Function control
