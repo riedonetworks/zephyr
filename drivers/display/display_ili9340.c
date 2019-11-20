@@ -130,7 +130,7 @@ static void ili9340_write_data(struct ili9340_data *data, void *tx_data, int tx_
 	u8_t* data_ptr8 = tx_data;
 
 	// set via IP bus until data is 64 bit aligned
-	while( ((int)data_ptr8 & 0x00000003) != 0 )
+	while( ((int)data_ptr8 & 0x00000003) != 0 && tx_len)
 	{
 		result = SEMC_SendIPCommand(
 			SEMC, kSEMC_MemType_8080, 
@@ -143,6 +143,10 @@ static void ili9340_write_data(struct ili9340_data *data, void *tx_data, int tx_
 		if (result != kStatus_Success)
 		{
 			LOG_ERR("Error on IPCommand!");
+		}
+		else
+		{
+			tx_len--;
 		}
 	}
 
@@ -170,12 +174,16 @@ static void ili9340_write_data(struct ili9340_data *data, void *tx_data, int tx_
 		LOG_DBG("Writing %d bytes over IP bus", tx_len);
 		// Send out, 8 bit mode
 		u8_t* data_ptr8 = (u8_t*)data_ptr64;
-		for(int i=0; i< tx_len; i++)
+		while(tx_len)
 		{
-			result = SEMC_SendIPCommand(SEMC, kSEMC_MemType_8080, (uint32_t)data->data_reg, kSEMC_NORDBICM_Write, data_ptr8[i], NULL);
+			result = SEMC_SendIPCommand(SEMC, kSEMC_MemType_8080, (uint32_t)data->data_reg, kSEMC_NORDBICM_Write, *data_ptr8++, NULL);
 			if (result != kStatus_Success)
 			{
 				LOG_ERR("Error on IPCommand!");
+			}
+			else
+			{
+				tx_len--;
 			}
 		}
 	}

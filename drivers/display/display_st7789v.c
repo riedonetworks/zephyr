@@ -126,19 +126,33 @@ static void st7789v_write_cmd_byte(struct st7789v_data *data, u8_t cmd)
 
 static void st7789v_write_data(struct st7789v_data *data, void *tx_data, int tx_len)
 {
-	#if 0
-	SCB_DisableDCache();
-	__DMB();
-	u8_t* data_ptr = tx_data;
-	for(int i=0; i< tx_len; i++)
-	{
-		__DMB();
-		*(data->data_reg) = *data_ptr++;
-	}
-	SCB_EnableDCache();
-	#endif
 	int result;
-	u64_t* data_ptr64 = tx_data;
+
+	u8_t* data_ptr8 = tx_data;
+
+	// set via IP bus until data is 64 bit aligned
+	while( ((int)data_ptr8 & 0x00000003) != 0 && tx_len )
+	{
+		result = SEMC_SendIPCommand(
+			SEMC, kSEMC_MemType_8080, 
+			(uint32_t)data->data_reg, 
+			kSEMC_NORDBICM_Write, 
+			*data_ptr8++, 
+			NULL
+		);
+
+		if (result != kStatus_Success)
+		{
+			LOG_ERR("Error on IPCommand!");
+		}
+		else
+		{
+			tx_len--;
+		}
+	}
+
+	// Switch to 64bit AXI bus
+	u64_t* data_ptr64 = (u64_t*)data_ptr8;
 	
 	if( tx_len > sizeof(u64_t))
 	{
@@ -155,21 +169,26 @@ static void st7789v_write_data(struct st7789v_data *data, void *tx_data, int tx_
 		SCB_EnableDCache();
 	}
 
+
 	if (tx_len)
 	{
 		LOG_DBG("Writing %d bytes over IP bus", tx_len);
 		// Send out, 8 bit mode
 		u8_t* data_ptr8 = (u8_t*)data_ptr64;
-		for(int i=0; i< tx_len; i++)
+		while(tx_len)
 		{
-			result = SEMC_SendIPCommand(SEMC, kSEMC_MemType_8080, (uint32_t)data->data_reg, kSEMC_NORDBICM_Write, data_ptr8[i], NULL);
+			result = SEMC_SendIPCommand(SEMC, kSEMC_MemType_8080, (uint32_t)data->data_reg, kSEMC_NORDBICM_Write, *data_ptr8++, NULL);
 			if (result != kStatus_Success)
 			{
 				LOG_ERR("Error on IPCommand!");
 			}
+			else
+			{
+				tx_len--;
+			}
 		}
 	}
-
+	
 }
 
 #endif
