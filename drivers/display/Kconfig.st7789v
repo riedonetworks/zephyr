@@ -14,7 +14,7 @@ menuconfig ST7789V
 
 if ST7789V
 
-choice
+choice ST7789V_LCD
 	prompt "LCD"
 	help
 	  Specify the type of LCD connected to the ST7789V display controller.
@@ -27,7 +27,7 @@ config ST7789V_LCD_FG0204L0DSSWMG01
 	
 endchoice
 
-choice
+choice ST7789V_IFACE
 	prompt "display interface"
 	default ST7789V_SPI
 	help
@@ -42,7 +42,7 @@ config ST7789V_PARALLEL
 endchoice
 
 
-choice
+choice ST7789V_PIXEL_FORMAT
 	prompt "Color pixel format"
 	default ST7789V_RGB565
 	help

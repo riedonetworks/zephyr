@@ -14,7 +14,7 @@ menuconfig ILI9340
 
 if ILI9340
 
-choice
+choice ILI9340_LCD
 	prompt "LCD"
 	default ILI9340_LCD_ADAFRUIT_1480
 	help
@@ -35,7 +35,7 @@ config ILI9340_LCD_TIANMA_TM024HDH49
 
 endchoice
 
-choice
+choice ILI9340_PIXEL_FORMAT
 	prompt "Color pixel format"
 	help
 	Specify the color pixel format of the ILI9340 display controller.
@@ -48,7 +48,7 @@ config ILI9340_RGB565
 
 endchoice
 
-choice
+choice ILI9340_IFACE
 	prompt "display interface"
 	default ILI9340_SPI
 	help
