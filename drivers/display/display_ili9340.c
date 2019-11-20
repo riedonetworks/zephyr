@@ -21,9 +21,7 @@ LOG_MODULE_REGISTER(display_ili9340);
 
 
 #if defined(CONFIG_ILI9340_SPI)
-#warning ILI9340 SPI mode
 #elif defined(CONFIG_ILI9340_PARALLEL)
-#warning ILI9340 Parallel mode
 #include <fsl_semc.h>
 #else
 #error ILI9340 mode undefined!
@@ -127,20 +125,30 @@ static void ili9340_write_cmd_byte(struct ili9340_data *data, u8_t cmd)
 
 static void ili9340_write_data(struct ili9340_data *data, void *tx_data, int tx_len)
 {
-	#if 0
-	SCB_DisableDCache();
-	__DMB();
-	u8_t* data_ptr = tx_data;
-	for(int i=0; i< tx_len; i++)
-	{
-		__DMB();
-		*(data->data_reg) = *data_ptr++;
-	}
-	SCB_EnableDCache();
-	#endif
 	int result;
-	u64_t* data_ptr64 = tx_data;
-	
+
+	u8_t* data_ptr8 = tx_data;
+
+	// set via IP bus until data is 64 bit aligned
+	while( ((int)data_ptr8 & 0x00000003) != 0 )
+	{
+		result = SEMC_SendIPCommand(
+			SEMC, kSEMC_MemType_8080, 
+			(uint32_t)data->data_reg, 
+			kSEMC_NORDBICM_Write, 
+			*data_ptr8++, 
+			NULL
+		);
+
+		if (result != kStatus_Success)
+		{
+			LOG_ERR("Error on IPCommand!");
+		}
+	}
+
+	// Switch to 64bit AXI bus
+	u64_t* data_ptr64 = (u64_t*)data_ptr8;
+
 	if( tx_len > sizeof(u64_t))
 	{
 		LOG_DBG("Writing %d bytes over AXI bus", tx_len);
@@ -156,6 +164,7 @@ static void ili9340_write_data(struct ili9340_data *data, void *tx_data, int tx_
 		SCB_EnableDCache();
 	}
 
+	// If required, finish on IP bus
 	if (tx_len)
 	{
 		LOG_DBG("Writing %d bytes over IP bus", tx_len);
