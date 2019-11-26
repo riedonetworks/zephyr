@@ -85,10 +85,10 @@ static int mcux_flexio_uart_fifo_fill(struct device *dev, const u8_t *tx_data,
 	u8_t num_tx = 0U;
 
 	while ((len - num_tx > 0) &&
-	       (LPUART_GetStatusFlags(config->base)
-		& kLPUART_TxDataRegEmptyFlag)) {
+	       (FLEXIO_UART_GetStatusFlags(config->base)
+		& kFLEXIO_UART_TxDataRegEmptyFlag)) {
 
-		LPUART_WriteByte(config->base, tx_data[num_tx++]);
+		FLEXIO_UART_WriteByte(config->base, &tx_data[num_tx++]);
 	}
 
 	return num_tx;
@@ -101,10 +101,10 @@ static int mcux_flexio_uart_fifo_read(struct device *dev, u8_t *rx_data,
 	u8_t num_rx = 0U;
 
 	while ((len - num_rx > 0) &&
-	       (LPUART_GetStatusFlags(config->base)
-		& kLPUART_RxDataRegFullFlag)) {
+	       (FLEXIO_UART_GetStatusFlags(config->base)
+		& kFLEXIO_UART_RxDataRegFullFlag)) {
 
-		rx_data[num_rx++] = LPUART_ReadByte(config->base);
+		FLEXIO_UART_ReadByte(config->base, &rx_data[num_rx++]);
 	}
 
 	return num_rx;
@@ -113,87 +113,83 @@ static int mcux_flexio_uart_fifo_read(struct device *dev, u8_t *rx_data,
 static void mcux_flexio_uart_irq_tx_enable(struct device *dev)
 {
 	const struct mcux_flexio_uart_config *config = dev->config->config_info;
-	u32_t mask = kLPUART_TxDataRegEmptyInterruptEnable;
+	u32_t mask = kFLEXIO_UART_TxDataRegEmptyInterruptEnable;
 
-	LPUART_EnableInterrupts(config->base, mask);
+	FLEXIO_UART_EnableInterrupts(config->base, mask);
 }
 
 static void mcux_flexio_uart_irq_tx_disable(struct device *dev)
 {
 	const struct mcux_flexio_uart_config *config = dev->config->config_info;
-	u32_t mask = kLPUART_TxDataRegEmptyInterruptEnable;
+	u32_t mask = kFLEXIO_UART_TxDataRegEmptyInterruptEnable;
 
-	LPUART_DisableInterrupts(config->base, mask);
+	FLEXIO_UART_DisableInterrupts(config->base, mask);
 }
 
 static int mcux_flexio_uart_irq_tx_complete(struct device *dev)
 {
 	const struct mcux_flexio_uart_config *config = dev->config->config_info;
-	u32_t flags = LPUART_GetStatusFlags(config->base);
+	u32_t flags = FLEXIO_UART_GetStatusFlags(config->base);
 
-	return (flags & kLPUART_TxDataRegEmptyFlag) != 0U;
+	return (flags & kFLEXIO_UART_TxDataRegEmptyFlag) != 0U;
 }
 
 static int mcux_flexio_uart_irq_tx_ready(struct device *dev)
 {
 	const struct mcux_flexio_uart_config *config = dev->config->config_info;
-	u32_t mask = kLPUART_TxDataRegEmptyInterruptEnable;
+	u32_t mask = kFLEXIO_UART_TxDataRegEmptyInterruptEnable;
 
-	return (LPUART_GetEnabledInterrupts(config->base) & mask)
+	return (config->base->flexioBase->SHIFTEIEN & mask)
 		&& mcux_flexio_uart_irq_tx_complete(dev);
 }
 
 static void mcux_flexio_uart_irq_rx_enable(struct device *dev)
 {
 	const struct mcux_flexio_uart_config *config = dev->config->config_info;
-	u32_t mask = kLPUART_RxDataRegFullInterruptEnable;
+	u32_t mask = kFLEXIO_UART_RxDataRegFullInterruptEnable;
 
-	LPUART_EnableInterrupts(config->base, mask);
+	FLEXIO_UART_EnableInterrupts(config->base, mask);
 }
 
 static void mcux_flexio_uart_irq_rx_disable(struct device *dev)
 {
 	const struct mcux_flexio_uart_config *config = dev->config->config_info;
-	u32_t mask = kLPUART_RxDataRegFullInterruptEnable;
+	u32_t mask = kFLEXIO_UART_RxDataRegFullInterruptEnable;
 
-	LPUART_DisableInterrupts(config->base, mask);
+	FLEXIO_UART_DisableInterrupts(config->base, mask);
 }
 
 static int mcux_flexio_uart_irq_rx_full(struct device *dev)
 {
 	const struct mcux_flexio_uart_config *config = dev->config->config_info;
-	u32_t flags = LPUART_GetStatusFlags(config->base);
+	u32_t flags = FLEXIO_UART_GetStatusFlags(config->base);
 
-	return (flags & kLPUART_RxDataRegFullFlag) != 0U;
+	return (flags & kFLEXIO_UART_RxDataRegFullFlag) != 0U;
 }
 
 static int mcux_flexio_uart_irq_rx_ready(struct device *dev)
 {
 	const struct mcux_flexio_uart_config *config = dev->config->config_info;
-	u32_t mask = kLPUART_RxDataRegFullInterruptEnable;
+	u32_t mask = kFLEXIO_UART_RxDataRegFullInterruptEnable;
 
-	return (LPUART_GetEnabledInterrupts(config->base) & mask)
+	return (config->base->flexioBase->SHIFTEIEN & mask)
 		&& mcux_flexio_uart_irq_rx_full(dev);
 }
 
 static void mcux_flexio_uart_irq_err_enable(struct device *dev)
 {
 	const struct mcux_flexio_uart_config *config = dev->config->config_info;
-	u32_t mask = kLPUART_NoiseErrorInterruptEnable |
-			kLPUART_FramingErrorInterruptEnable |
-			kLPUART_ParityErrorInterruptEnable;
+	u32_t mask = kFLEXIO_UART_RxOverRunFlag;
 
-	LPUART_EnableInterrupts(config->base, mask);
+	FLEXIO_UART_EnableInterrupts(config->base, mask);
 }
 
 static void mcux_flexio_uart_irq_err_disable(struct device *dev)
 {
 	const struct mcux_flexio_uart_config *config = dev->config->config_info;
-	u32_t mask = kLPUART_NoiseErrorInterruptEnable |
-			kLPUART_FramingErrorInterruptEnable |
-			kLPUART_ParityErrorInterruptEnable;
+	u32_t mask = kFLEXIO_UART_RxOverRunFlag;
 
-	LPUART_DisableInterrupts(config->base, mask);
+	FLEXIO_UART_DisableInterrupts(config->base, mask);
 }
 
 static int mcux_flexio_uart_irq_is_pending(struct device *dev)
@@ -449,19 +445,11 @@ DEVICE_AND_API_INIT(flexio_uart_0, DT_INST_0_NXP_IMXRT_FLEXIO_UART_LABEL,
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 static void mcux_flexio_uart_config_func_0(struct device *dev)
 {
-	IRQ_CONNECT(DT_UART_MCUX_LPUART_0_IRQ_0,
-		    DT_UART_MCUX_LPUART_0_IRQ_0_PRI,
-		    mcux_flexio_uart_isr, DEVICE_GET(uart_0), 0);
+	IRQ_CONNECT(DT_INST_0_NXP_IMXRT_FLEXIO_UART_IRQ_0,
+		    DT_INST_0_NXP_IMXRT_FLEXIO_UART_IRQ_0_PRIORITY,
+		    mcux_flexio_uart_isr, DEVICE_GET(flexio_uart_0), 0);
 
-	irq_enable(DT_UART_MCUX_LPUART_0_IRQ_0);
-
-#ifdef DT_UART_MCUX_LPUART_0_IRQ_1
-	IRQ_CONNECT(DT_UART_MCUX_LPUART_0_IRQ_1,
-		    DT_UART_MCUX_LPUART_0_IRQ_1_PRI,
-		    mcux_flexio_uart_isr, DEVICE_GET(uart_0), 0);
-
-	irq_enable(DT_UART_MCUX_LPUART_0_IRQ_1);
-#endif /* DT_UART_MCUX_LPUART_0_IRQ_1 */
+	irq_enable(DT_INST_0_NXP_IMXRT_FLEXIO_UART_IRQ_0);
 }
 #endif
 
@@ -470,7 +458,7 @@ static void mcux_flexio_uart_config_func_0(struct device *dev)
 #ifdef CONFIG_UART_MCUX_FLEXIO_UART_2
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
-static void mcux_flexio_uart_config_func_0(struct device *dev);
+static void mcux_flexio_uart_config_func_1(struct device *dev);
 #endif
 
 static FLEXIO_UART_Type uart_1_flexio_config = {
@@ -501,7 +489,7 @@ static const struct mcux_flexio_uart_config mcux_flexio_uart_1_config = {
 		(clock_control_subsys_t)DT_INST_1_NXP_IMXRT_FLEXIO_UART_CLOCK_NAME,
 	.baud_rate = DT_INST_1_NXP_IMXRT_FLEXIO_UART_CURRENT_SPEED,
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
-	.irq_config_func = mcux_flexio_uart_config_func_0,
+	.irq_config_func = mcux_flexio_uart_config_func_1,
 #endif
 };
 
@@ -514,21 +502,13 @@ DEVICE_AND_API_INIT(flexio_uart_1, DT_INST_1_NXP_IMXRT_FLEXIO_UART_LABEL,
 		    &mcux_flexio_uart_driver_api);
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
-static void mcux_flexio_uart_config_func_0(struct device *dev)
+static void mcux_flexio_uart_config_func_1(struct device *dev)
 {
-	IRQ_CONNECT(DT_UART_MCUX_LPUART_0_IRQ_0,
-		    DT_UART_MCUX_LPUART_0_IRQ_0_PRI,
-		    mcux_flexio_uart_isr, DEVICE_GET(uart_0), 0);
+	IRQ_CONNECT(DT_INST_1_NXP_IMXRT_FLEXIO_UART_IRQ_0,
+		    DT_INST_1_NXP_IMXRT_FLEXIO_UART_IRQ_0_PRIORITY,
+		    mcux_flexio_uart_isr, DEVICE_GET(flexio_uart_1), 0);
 
-	irq_enable(DT_UART_MCUX_LPUART_0_IRQ_0);
-
-#ifdef DT_UART_MCUX_LPUART_0_IRQ_1
-	IRQ_CONNECT(DT_UART_MCUX_LPUART_0_IRQ_1,
-		    DT_UART_MCUX_LPUART_0_IRQ_1_PRI,
-		    mcux_flexio_uart_isr, DEVICE_GET(uart_0), 0);
-
-	irq_enable(DT_UART_MCUX_LPUART_0_IRQ_1);
-#endif /* DT_UART_MCUX_LPUART_0_IRQ_1 */
+	irq_enable(DT_INST_1_NXP_IMXRT_FLEXIO_UART_IRQ_0);
 }
 #endif
 
