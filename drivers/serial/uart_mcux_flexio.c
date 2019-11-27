@@ -60,12 +60,42 @@ struct mcux_flexio_uart_data {
 	// Rx
 	edma_handle_t rx_dma_handle;
 	struct k_delayed_work rx_timeout_work;
+	u32_t rx_timeout;
 	flexio_uart_transfer_t rx_xfer;
+	flexio_uart_transfer_t rx_next_xfer;
+	size_t rx_processed_len;
 
 #endif
 };
 
+const flexio_uart_transfer_t NULL_XFER = {NULL, 0};
+
 #ifdef CONFIG_UART_ASYNC_API
+
+static void  mcux_flexio_uartnotify_rx_processed(struct mcux_flexio_uart_data *dev_data,
+					  size_t processed)
+{
+	if (!dev_data->async_cb) {
+		return;
+	}
+
+	if (dev_data->rx_processed_len == processed) {
+		return;
+	}
+
+	struct uart_event evt = {
+		.type = UART_RX_RDY,
+		.data.rx = {
+			.buf = dev_data->rx_xfer.data,
+			.offset = dev_data->rx_processed_len,
+			.len = processed - dev_data->rx_processed_len,
+		},
+	};
+
+	dev_data->rx_processed_len = processed;
+
+	dev_data->async_cb(&evt, dev_data->async_cb_data);
+}
 
 static void mcux_flexio_uart_dma_cb(FLEXIO_UART_Type *base,
                               flexio_uart_edma_handle_t *handle,
@@ -79,8 +109,10 @@ static void mcux_flexio_uart_dma_cb(FLEXIO_UART_Type *base,
     {
 		//LOG_DBG("DMA call-back: TxIdle");
 
+		// Cancel the timeout
 		k_delayed_work_cancel(&data->tx_timeout_work);
 
+		// Build an event
 		struct uart_event evt = {
 			.type = UART_TX_DONE,
 			.data.tx = {
@@ -89,10 +121,11 @@ static void mcux_flexio_uart_dma_cb(FLEXIO_UART_Type *base,
 			},
 		};
 
+		// Clear internal state
 		data->tx_xfer.data = NULL;
 		data->tx_xfer.dataSize = 0;
 
-
+		// notify user application
 		if (evt.data.tx.len != 0U && data->async_cb) {
 			data->async_cb(&evt, data->async_cb_data);
 		}
@@ -101,6 +134,45 @@ static void mcux_flexio_uart_dma_cb(FLEXIO_UART_Type *base,
     if (kStatus_FLEXIO_UART_RxIdle == status)
     {
 		LOG_DBG("DMA call-back: RxIdle");
+
+		// Notify the application about received data
+		mcux_flexio_uartnotify_rx_processed(data, data->rx_xfer.dataSize);
+
+		// No next buffer, so end the transfer 
+		if (!data->rx_next_xfer.dataSize) {
+			data->rx_xfer.data = NULL;
+			data->rx_xfer.dataSize = 0U;
+
+			if (data->async_cb) {
+				struct uart_event evt = {
+					.type = UART_RX_DISABLED,
+				};
+
+				data->async_cb(&evt, data->async_cb_data);
+			}
+
+			return;
+		}
+
+		data->rx_xfer = data->rx_next_xfer;
+		data->rx_processed_len = 0;
+		data->rx_next_xfer = NULL_XFER;
+
+		// TODO: Handle Rx timeout
+
+		// start DMA
+		FLEXIO_UART_TransferReceiveEDMA(data->cfg->base, 
+			&data->flexio_dma_handle, &data->rx_xfer);
+
+		if (data->async_cb) 
+		{
+			struct uart_event evt = {
+				.type = UART_RX_BUF_REQUEST,
+			};
+
+			data->async_cb(&evt, data->async_cb_data);
+		}
+
     }
 
 }
@@ -230,23 +302,133 @@ static int mcux_flexio_uart_tx_abort(struct device *dev)
 
 static int mcux_flexio_uart_rx_enable(struct device *dev, u8_t *buf, size_t len,u32_t timeout)
 {
-	//struct mcux_flexio_uart_data *data = dev->driver_data;
+	struct mcux_flexio_uart_data *data = dev->driver_data;
+	const struct mcux_flexio_uart_config *config = dev->config->config_info;
 
-	return -ENOTSUP;
+	int key = irq_lock();
+
+	if (data->rx_xfer.dataSize != 0U) {
+		irq_unlock(key);
+		return -EBUSY;
+	}
+
+
+
+	// store arguments
+	data->rx_xfer.data = buf;
+	data->rx_xfer.dataSize = len;
+	data->rx_timeout = timeout;
+	data->rx_processed_len = 0U;
+
+	LOG_DBG("Receiving %d bytes to %p", 
+			data->rx_xfer.dataSize, data->rx_xfer.data
+	);
+
+	irq_unlock(key);
+
+
+	// start DMA
+	FLEXIO_UART_TransferReceiveEDMA(config->base, 
+		&data->flexio_dma_handle, &data->rx_xfer);
+
+	return 0;
 }
 
 static int mcux_flexio_uart_rx_buf_rsp(struct device *dev, u8_t *buf, size_t len)
 {
-	//struct mcux_flexio_uart_data *data = dev->driver_data;
+	struct mcux_flexio_uart_data *data = dev->driver_data;
 
-	return -ENOTSUP;
+	int key = irq_lock();
+	int retval = 0;
+
+	if (data->rx_xfer.dataSize == 0U) {
+		retval = -EACCES;
+		goto err;
+	}
+
+	if (data->rx_next_xfer.dataSize != 0U) {
+		retval = -EBUSY;
+		goto err;
+	}
+
+	data->rx_next_xfer.data = buf;
+	data->rx_next_xfer.dataSize= len;
+
+err:
+	irq_unlock(key);
+	return retval;
 }
 
 static int mcux_flexio_uart_rx_disable(struct device *dev)
 {	
-	//struct mcux_flexio_uart_data *data = dev->driver_data;
+	struct mcux_flexio_uart_data *data = dev->driver_data;
+	const struct mcux_flexio_uart_config *config = dev->config->config_info;
+	int retval;
 
-	return -ENOTSUP;
+	k_delayed_work_cancel(&data->rx_timeout_work);
+
+	int key = irq_lock();
+
+	// disabling Rx while no transfer is scheduled is invalid
+	if (data->rx_xfer.dataSize == 0U) {
+		retval = -EINVAL;
+		goto err;
+	}
+
+	// Stop DMA
+	FLEXIO_UART_TransferAbortReceiveEDMA(config->base, &data->flexio_dma_handle);
+
+	// If chaind buffer is used, notify for release
+	if (data->rx_next_xfer.dataSize) {
+		struct uart_event evt = {
+			.type = UART_RX_BUF_RELEASED,
+			.data.rx_buf = {
+				.buf = data->rx_xfer.data,
+			},
+		};
+
+		data->rx_next_xfer.data = NULL;
+		data->rx_next_xfer.dataSize = 0U;
+
+		if (data->async_cb) {
+			data->async_cb(&evt, data->async_cb_data);
+		}
+	}
+
+	// Notify for the data already received!
+	size_t tx_count;
+	if ( FLEXIO_UART_TransferGetReceiveCountEDMA(config->base,
+			&data->flexio_dma_handle, &tx_count) == kStatus_Success
+			&& tx_count != 0U)
+	{
+
+		mcux_flexio_uartnotify_rx_processed(data, tx_count);
+	}
+
+	// notify for the current buffer to be released
+	struct uart_event evt = {
+		.type = UART_RX_BUF_RELEASED,
+		.data.rx_buf = {
+			.buf = data->rx_xfer.data,
+		},
+	};
+	data->rx_xfer.data = NULL;
+	data->rx_xfer.dataSize = 0U;
+	if (data->async_cb) {
+		data->async_cb(&evt, data->async_cb_data);
+	}
+
+	// Nofitfy that the Rx has been disabled!
+	evt.type = UART_RX_DISABLED;
+	if (data->async_cb) {
+		data->async_cb(&evt, data->async_cb_data);
+	}
+
+
+
+err:
+	irq_unlock(key);
+	return retval;
 }
 
 
