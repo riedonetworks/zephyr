@@ -39,22 +39,28 @@ struct mcux_flexio_uart_config {
 };
 
 struct mcux_flexio_uart_data {
+
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	uart_irq_callback_user_data_t callback;
 	void *cb_data;
 #endif
 #ifdef CONFIG_UART_ASYNC_API
+	// Common
+	const struct mcux_flexio_uart_config* cfg;
 
 	uart_callback_t async_cb;
 	void*           async_cb_data;
+	flexio_uart_edma_handle_t flexio_dma_handle;
 
+	// Tx
+	edma_handle_t tx_dma_handle;
 	struct k_delayed_work tx_timeout_work;
 	flexio_uart_transfer_t tx_xfer;
 
-	edma_handle_t tx_dma_handle;
+	// Rx
 	edma_handle_t rx_dma_handle;
-	flexio_uart_edma_handle_t flexio_dma_handle;
-
+	struct k_delayed_work rx_timeout_work;
+	flexio_uart_transfer_t rx_xfer;
 
 #endif
 };
@@ -72,6 +78,8 @@ static void mcux_flexio_uart_dma_cb(FLEXIO_UART_Type *base,
 	if (kStatus_FLEXIO_UART_TxIdle == status)
     {
 		//LOG_DBG("DMA call-back: TxIdle");
+
+		k_delayed_work_cancel(&data->tx_timeout_work);
 
 		struct uart_event evt = {
 			.type = UART_TX_DONE,
@@ -97,6 +105,61 @@ static void mcux_flexio_uart_dma_cb(FLEXIO_UART_Type *base,
 
 }
 
+static int mcux_flex_io_uart_tx_halt(struct mcux_flexio_uart_data *data)
+{
+	const struct mcux_flexio_uart_config *config = data->cfg;
+	int key = irq_lock();
+	size_t tx_active = data->tx_xfer.dataSize;
+	//struct dma_status st;
+
+	struct uart_event evt = {
+		.type = UART_TX_ABORTED,
+		.data.tx = {
+			.buf = data->tx_xfer.data,
+			.len = 0U,
+		},
+	};
+
+	data->tx_xfer.data = NULL;
+	data->tx_xfer.dataSize = 0U;
+
+	//dma_stop(data->dma, cfg->tx_dma_channel);
+	FLEXIO_UART_TransferAbortSendEDMA(config->base, &data->flexio_dma_handle);
+
+	irq_unlock(key);
+
+	size_t sent_count;
+	if (FLEXIO_UART_TransferGetSendCountEDMA(config->base, 
+			&data->flexio_dma_handle, &sent_count) == kStatus_Success) 
+	{
+		evt.data.tx.len = sent_count;
+	}
+
+	if (tx_active) {
+		if (data->async_cb) {
+			data->async_cb(&evt, data->async_cb_data);
+		}
+	} else {
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void mcux_flex_io_uart_tx_timeout(struct k_work *work)
+{
+	struct mcux_flexio_uart_data *data = CONTAINER_OF(work,
+							   struct mcux_flexio_uart_data, tx_timeout_work);
+
+	LOG_WRN("Tx Timeout occured!");
+	mcux_flex_io_uart_tx_halt(data);
+}
+
+static void mcux_flex_io_uart_rx_timeout(struct k_work *work)
+{
+
+}
+
 static int mcux_flexio_uart_callback_set(struct device *dev, uart_callback_t callback,void *user_data)
 {
 	struct mcux_flexio_uart_data *data = dev->driver_data;
@@ -118,11 +181,6 @@ static int mcux_flexio_uart_tx(struct device *dev, const u8_t *buf, size_t len,
 	status_t s;
 	int retval = 0;
 
-	if(timeout != K_FOREVER)
-	{
-		return -ENOTSUP;
-	}
-
 	int key = irq_lock();
 
 	if (data->tx_xfer.dataSize != 0U) {
@@ -138,6 +196,12 @@ static int mcux_flexio_uart_tx(struct device *dev, const u8_t *buf, size_t len,
 	LOG_DBG("Sending %d bytes from %p", 
 			data->tx_xfer.dataSize, data->tx_xfer.data
 	);
+
+	if(timeout != K_FOREVER)
+	{
+		LOG_DBG("Setting timeout of %d", timeout);
+		k_delayed_work_submit(&data->tx_timeout_work, timeout);
+	}
 
 	s = FLEXIO_UART_TransferSendEDMA(
 		config->base, 
@@ -157,9 +221,11 @@ err:
 
 static int mcux_flexio_uart_tx_abort(struct device *dev)
 {
-	//struct mcux_flexio_uart_data *data = dev->driver_data;
+	struct mcux_flexio_uart_data * data = dev->driver_data;
 
-	return -ENOTSUP;
+	k_delayed_work_cancel(&data->tx_timeout_work);
+
+	return mcux_flex_io_uart_tx_halt(data);
 }
 
 static int mcux_flexio_uart_rx_enable(struct device *dev, u8_t *buf, size_t len,u32_t timeout)
@@ -542,6 +608,10 @@ static int mcux_flexio_uart_init(struct device *dev)
 #endif
 
 #ifdef CONFIG_UART_ASYNC_API
+	k_delayed_work_init(&data->tx_timeout_work, mcux_flex_io_uart_tx_timeout);
+	k_delayed_work_init(&data->rx_timeout_work, mcux_flex_io_uart_rx_timeout);
+
+
 	status_t s;
 	// Intialize the DMA & DMAMUX
 	edma_config_t edma_config;
@@ -573,8 +643,10 @@ static int mcux_flexio_uart_init(struct device *dev)
 		LOG_ERR("Failed initilizsing DMA");
 		return -EINVAL;
 	}
-
+	// Attache the IRQ to the ISR
 	config->irq_config_func(dev);
+
+	data->cfg = config;
 
 #endif
 
