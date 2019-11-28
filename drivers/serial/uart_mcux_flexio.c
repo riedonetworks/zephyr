@@ -64,6 +64,7 @@ struct mcux_flexio_uart_data {
 	flexio_uart_transfer_t rx_xfer;
 	flexio_uart_transfer_t rx_next_xfer;
 	size_t rx_processed_len;
+	bool rx_waiting_for_irq;
 
 #endif
 };
@@ -133,7 +134,7 @@ static void mcux_flexio_uart_dma_cb(FLEXIO_UART_Type *base,
 
     if (kStatus_FLEXIO_UART_RxIdle == status)
     {
-		LOG_DBG("DMA call-back: RxIdle");
+		//LOG_DBG("DMA call-back: RxIdle");
 
 		// Notify the application about received data
 		mcux_flexio_uartnotify_rx_processed(data, data->rx_xfer.dataSize);
@@ -300,6 +301,8 @@ static int mcux_flexio_uart_tx_abort(struct device *dev)
 	return mcux_flex_io_uart_tx_halt(data);
 }
 
+static int mcux_flexio_uart_poll_in(struct device *dev, unsigned char *c);
+
 static int mcux_flexio_uart_rx_enable(struct device *dev, u8_t *buf, size_t len,u32_t timeout)
 {
 	struct mcux_flexio_uart_data *data = dev->driver_data;
@@ -319,17 +322,30 @@ static int mcux_flexio_uart_rx_enable(struct device *dev, u8_t *buf, size_t len,
 	data->rx_xfer.dataSize = len;
 	data->rx_timeout = timeout;
 	data->rx_processed_len = 0U;
+	data->rx_waiting_for_irq = true;
 
-	LOG_DBG("Receiving %d bytes to %p", 
+	LOG_DBG("Setup async receive of %d bytes to %p", 
 			data->rx_xfer.dataSize, data->rx_xfer.data
 	);
 
+	// purge the last char received
+	u8_t dummy;
+	mcux_flexio_uart_poll_in(dev, &dummy);
+
 	irq_unlock(key);
 
+	// We will use the first ISR to trigger the Rx timeout timer
+	FLEXIO_UART_EnableInterrupts(config->base, 
+		kFLEXIO_UART_RxDataRegFullInterruptEnable);
 
 	// start DMA
-	FLEXIO_UART_TransferReceiveEDMA(config->base, 
+	status_t s = FLEXIO_UART_TransferReceiveEDMA(config->base, 
 		&data->flexio_dma_handle, &data->rx_xfer);
+	if( s!= kStatus_Success )
+	{
+		LOG_ERR("Failed setup DMA for receiving!");
+		return -EIO;
+	}
 
 	return 0;
 }
@@ -447,7 +463,6 @@ static void mcux_flexio_dma_rx_isr(void *arg)
 	struct mcux_flexio_uart_data *data = dev->driver_data;
 
 	EDMA_HandleIRQ(&data->rx_dma_handle);
-	LOG_DBG("DMA Rx ISR");
 }
 
 #endif
@@ -630,16 +645,71 @@ static void mcux_flexio_uart_irq_callback_set(struct device *dev,
 	data->cb_data = cb_data;
 }
 
+#endif /* CONFIG_UART_INTERRUPT_DRIVEN */
+
+#if CONFIG_UART_INTERRUPT_DRIVEN || CONFIG_UART_ASYNC_API
+
 static void mcux_flexio_uart_isr(void *arg)
 {
 	struct device *dev = arg;
 	struct mcux_flexio_uart_data *data = dev->driver_data;
 
+
+
+#if CONFIG_UART_INTERRUPT_DRIVEN
+
 	if (data->callback) {
 		data->callback(data->cb_data);
 	}
+#endif
+
+#if CONFIG_UART_ASYNC_API
+	//LOG_DBG("FlexIO ISR");
+
+	FLEXIO_UART_DisableInterrupts(data->cfg->base, 
+		kFLEXIO_UART_RxDataRegFullInterruptEnable);
+
+	if (data->rx_xfer.dataSize && 
+	    data->rx_waiting_for_irq) 
+	{
+		data->rx_waiting_for_irq = false;
+
+		/* Receive started, so request the next buffer */
+		if (data->rx_next_xfer.dataSize == 0U && data->async_cb) {
+			struct uart_event evt = {
+				.type = UART_RX_BUF_REQUEST,
+			};
+
+			data->async_cb(&evt, data->async_cb_data);
+		}
+
+		/*
+		 * If we have a timeout, restart the time remaining whenever
+		 * we see data.
+		 */
+		#if 0
+		if (data->rx_timeout_time != K_FOREVER) 
+		{
+			data->rx_timeout_from_isr = true;
+			data->rx_timeout_start = k_uptime_get_32();
+			k_delayed_work_submit(&data->rx_timeout_work,
+					      data->rx_timeout_chunk);
+		}
+		#endif
+
+	}
+
+#endif
+	FLEXIO_UART_ClearStatusFlags(data->cfg->base,
+		kFLEXIO_UART_TxDataRegEmptyFlag \
+		| kFLEXIO_UART_RxDataRegFullFlag \
+		| kFLEXIO_UART_RxOverRunFlag
+	);
+
 }
-#endif /* CONFIG_UART_INTERRUPT_DRIVEN */
+
+#endif
+
 
 
 
@@ -786,6 +856,9 @@ static int mcux_flexio_uart_init(struct device *dev)
 	}
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
+
+	FLEXIO_UART_EnableInterrupts(config->base, 
+			kFLEXIO_UART_TxDataRegEmptyInterruptEnable | kFLEXIO_UART_RxDataRegFullInterruptEnable );
 	config->irq_config_func(dev);
 #endif
 
@@ -827,6 +900,7 @@ static int mcux_flexio_uart_init(struct device *dev)
 	}
 	// Attache the IRQ to the ISR
 	config->irq_config_func(dev);
+
 
 	data->cfg = config;
 
@@ -878,7 +952,7 @@ static FLEXIO_UART_Type uart_0_flexio_config = {
     .TxPinIndex      = DT_INST_0_NXP_IMXRT_FLEXIO_UART_TXD_SIGNAL, 
     .RxPinIndex      = DT_INST_0_NXP_IMXRT_FLEXIO_UART_RXD_SIGNAL,
     .shifterIndex[0] = 0U,
-    .shifterIndex[1] = 1U,
+    .shifterIndex[1] = 2U,
     .timerIndex[0]   = 0U,
     .timerIndex[1]   = 1U,
 };
@@ -921,13 +995,12 @@ DEVICE_AND_API_INIT(flexio_uart_0, DT_INST_0_NXP_IMXRT_FLEXIO_UART_LABEL,
 #if defined(CONFIG_UART_INTERRUPT_DRIVEN) || defined(CONFIG_UART_ASYNC_API)
 static void mcux_flexio_uart_config_func_0(struct device *dev)
 {
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	IRQ_CONNECT(DT_INST_0_NXP_IMXRT_FLEXIO_UART_IRQ_0,
 		    DT_INST_0_NXP_IMXRT_FLEXIO_UART_IRQ_0_PRIORITY,
 		    mcux_flexio_uart_isr, DEVICE_GET(flexio_uart_0), 0);
 
 	irq_enable(DT_INST_0_NXP_IMXRT_FLEXIO_UART_IRQ_0);
-#endif
+
 #ifdef CONFIG_UART_ASYNC_API
 	IRQ_CONNECT(0,
 		    DT_INST_0_NXP_IMXRT_FLEXIO_UART_IRQ_0_PRIORITY,
@@ -958,7 +1031,7 @@ static FLEXIO_UART_Type uart_1_flexio_config = {
     .TxPinIndex      = DT_INST_1_NXP_IMXRT_FLEXIO_UART_TXD_SIGNAL, 
     .RxPinIndex      = DT_INST_1_NXP_IMXRT_FLEXIO_UART_RXD_SIGNAL,
     .shifterIndex[0] = 0U,
-    .shifterIndex[1] = 1U,
+    .shifterIndex[1] = 2U,
     .timerIndex[0]   = 0U,
     .timerIndex[1]   = 1U
 };
