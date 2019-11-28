@@ -16,7 +16,7 @@
 #include <soc.h>
 
 
-#define LOG_LEVEL LOG_LEVEL_DBG
+#define LOG_LEVEL LOG_LEVEL_WRN
 #include <logging/log.h>
 LOG_MODULE_REGISTER(flexio_uart);
 
@@ -136,6 +136,13 @@ static void mcux_flexio_uart_dma_cb(FLEXIO_UART_Type *base,
     {
 		//LOG_DBG("DMA call-back: RxIdle");
 
+		// If the next buffer is setup, imediatly restart the DMA
+		if (data->rx_next_xfer.dataSize) {
+				// start DMA
+			FLEXIO_UART_TransferReceiveEDMA(data->cfg->base, 
+					&data->flexio_dma_handle, &data->rx_next_xfer);
+		}
+
 		// end of the buffer. If received lenght match buffer, no 
 
 		// Notify the application about received data
@@ -177,10 +184,6 @@ static void mcux_flexio_uart_dma_cb(FLEXIO_UART_Type *base,
 		data->rx_next_xfer = NULL_XFER;
 
 		// TODO: Handle Rx timeout
-
-		// start DMA
-		FLEXIO_UART_TransferReceiveEDMA(data->cfg->base, 
-			&data->flexio_dma_handle, &data->rx_xfer);
 
 		if (data->async_cb) 
 		{
