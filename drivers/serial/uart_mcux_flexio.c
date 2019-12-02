@@ -6,6 +6,7 @@
 
 #include <errno.h>
 #include <device.h>
+#include <logging/log_ctrl.h>
 #include <drivers/uart.h>
 #include <drivers/clock_control.h>
 #include <fsl_flexio_uart.h>
@@ -16,7 +17,7 @@
 #include <soc.h>
 
 
-#define LOG_LEVEL LOG_LEVEL_WRN
+#define LOG_LEVEL LOG_LEVEL_DBG
 #include <logging/log.h>
 LOG_MODULE_REGISTER(flexio_uart);
 
@@ -134,17 +135,17 @@ static void mcux_flexio_uart_dma_cb(FLEXIO_UART_Type *base,
 
     if (kStatus_FLEXIO_UART_RxIdle == status)
     {
-		//LOG_DBG("DMA call-back: RxIdle");
+		LOG_DBG("DMA call-back: RxIdle");
 
 		// If the next buffer is setup, imediatly restart the DMA
 		if (data->rx_next_xfer.dataSize) {
 				// start DMA
+			LOG_DBG("Re-loading DMA (buf = %p)!", data->rx_next_xfer.data);
 			FLEXIO_UART_TransferReceiveEDMA(data->cfg->base, 
 					&data->flexio_dma_handle, &data->rx_next_xfer);
 		}
 
-		// end of the buffer. If received lenght match buffer, no 
-
+		// end of the buffer. If received lenght match buffer, 
 		// Notify the application about received data
 		mcux_flexio_uartnotify_rx_processed(data, data->rx_xfer.dataSize);
 
@@ -184,6 +185,8 @@ static void mcux_flexio_uart_dma_cb(FLEXIO_UART_Type *base,
 		data->rx_next_xfer = NULL_XFER;
 
 		// TODO: Handle Rx timeout
+		k_delayed_work_submit(&data->rx_timeout_work,
+					data->rx_timeout);
 
 		if (data->async_cb) 
 		{
@@ -194,6 +197,7 @@ static void mcux_flexio_uart_dma_cb(FLEXIO_UART_Type *base,
 			data->async_cb(&evt, data->async_cb_data);
 		}
 
+		LOG_DBG("End of RxIdle");
     }
 
 }
@@ -260,8 +264,15 @@ static void mcux_flex_io_uart_rx_timeout(struct k_work *work)
 		LOG_ERR("Failed getting Received count from DMA!");
 		return;
 	}
+	
+	LOG_DBG("Rx Timeout occured (received = %d)", rx_count);
+
+	if( rx_count == data->rx_xfer.dataSize)
+	{
+		LOG_DBG("Discarding Rx timout with recevied count of %d", rx_count);
+		return;
+	}
 			
-	//LOG_WRN("Rx Timeout occured (received = %d)", rx_count);
 	if( rx_count != 0U)
 	{
 		mcux_flexio_uartnotify_rx_processed(data, rx_count);
@@ -907,6 +918,7 @@ static int mcux_flexio_uart_init(struct device *dev)
 	edma_config_t edma_config;
 	DMAMUX_Init(DMAMUX);
     EDMA_GetDefaultConfig(&edma_config);
+	edma_config.enableDebugMode = true; 
     EDMA_Init(DMA0, &edma_config);
 
 	// Tx Mux and handle
