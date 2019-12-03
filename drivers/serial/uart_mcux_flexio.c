@@ -17,7 +17,7 @@
 #include <soc.h>
 
 
-#define LOG_LEVEL LOG_LEVEL_DBG
+#define LOG_LEVEL LOG_LEVEL_WRN
 #include <logging/log.h>
 LOG_MODULE_REGISTER(flexio_uart);
 
