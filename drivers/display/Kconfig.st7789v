@@ -24,7 +24,10 @@ config ST7789V_LCD_TL019FQV01
 
 config ST7789V_LCD_FG0204L0DSSWMG01
 	bool "Dataimage FG0204L0DSSWMG01"
-	
+
+config ST7789V_LCD_TL024QVV09
+	bool "Top Display TL024QVV09"
+		
 endchoice
 
 choice ST7789V_IFACE
