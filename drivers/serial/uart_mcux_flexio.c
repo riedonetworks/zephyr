@@ -17,9 +17,8 @@
 #include <soc.h>
 
 
-#define LOG_LEVEL LOG_LEVEL_DGB
 #include <logging/log.h>
-LOG_MODULE_REGISTER(flexio_uart);
+LOG_MODULE_REGISTER(flexio_uart, LOG_LEVEL_INF);
 
 struct mcux_flexio_uart_config {
 	FLEXIO_UART_Type *base;
@@ -58,11 +57,11 @@ struct mcux_flexio_uart_data {
 	struct k_delayed_work tx_timeout_work;
 	flexio_uart_transfer_t tx_xfer;
 
-	// Rx
+	////// Rx
 	edma_handle_t rx_dma_handle;
 	struct k_delayed_work rx_timeout_work;
-	size_t rx_timeout_time;
-	size_t rx_timeout_chunk;
+	s32_t rx_timeout_time;
+	s32_t rx_timeout_chunk;
 	u32_t rx_timeout_start;
 
 	flexio_uart_transfer_t rx_xfer;
@@ -189,10 +188,6 @@ static void mcux_flexio_uart_dma_cb(FLEXIO_UART_Type *base,
 		data->rx_processed_len = 0;
 		data->rx_next_xfer = NULL_XFER;
 
-		// TODO: Handle Rx timeout
-		k_delayed_work_submit(&data->rx_timeout_work,
-					data->rx_timeout_time);
-
 		if (data->async_cb) 
 		{
 			struct uart_event evt = {
@@ -201,6 +196,10 @@ static void mcux_flexio_uart_dma_cb(FLEXIO_UART_Type *base,
 
 			data->async_cb(&evt, data->async_cb_data);
 		}
+
+				// TODO: Handle Rx timeout
+		k_delayed_work_submit(&data->rx_timeout_work,
+					data->rx_timeout_chunk);
 
 		LOG_DBG("End of RxIdle");
     }
@@ -293,13 +292,22 @@ static void mcux_flex_io_uart_rx_timeout(struct k_work *work)
 		irq_unlock(key);
 		return;
 	}
+
+	// If received count is equal to buffer size, then the DMA ISR is pending. 
+	// Let it porcess the work for us!
 	if( pending_length == data->rx_xfer.dataSize)
 	{
 		LOG_WRN("Discarding Rx timout with recevied count of %d", pending_length);
+		k_delayed_work_submit(&data->rx_timeout_work,
+				      data->rx_timeout_chunk);
 		irq_unlock(key);
 		return;
 	}
 
+	LOG_DBG("Re-enabling IRQs");
+	data->rx_waiting_for_irq = true;
+	FLEXIO_UART_EnableInterrupts(data->cfg->base,
+		kFLEXIO_UART_RxDataRegFullInterruptEnable);
 
 	/*
 	 * Never do a notify on a timeout started from the ISR: timing
@@ -333,6 +341,7 @@ static void mcux_flex_io_uart_rx_timeout(struct k_work *work)
 				      data->rx_timeout_chunk);
 
 		k_delayed_work_submit(&data->rx_timeout_work, remaining);
+		LOG_DBG("Re-arming timeout, (remaining=%d)", remaining);
 	}
 
 	irq_unlock(key);
@@ -428,7 +437,7 @@ static int mcux_flexio_uart_rx_enable(struct device *dev, u8_t *buf, size_t len,
 	data->rx_timeout_time = timeout;
 	data->rx_timeout_chunk = MAX(timeout / 4U, 1);
 	data->rx_processed_len = 0U;
-	data->rx_waiting_for_irq = true;
+	
 	data->rx_timeout_from_isr = true;
 
 
@@ -443,16 +452,16 @@ static int mcux_flexio_uart_rx_enable(struct device *dev, u8_t *buf, size_t len,
 	irq_unlock(key);
 
 	// We will use the first ISR to trigger the Rx timeout timer
+	data->rx_waiting_for_irq = true;
 	FLEXIO_UART_EnableInterrupts(config->base, 
 		kFLEXIO_UART_RxDataRegFullInterruptEnable);
 
 	// start DMA
-	status_t s = FLEXIO_UART_TransferReceiveEDMA(config->base, 
+	status_t s = FLEXIO_UART_TransferReceiveEDMA(data->cfg->base, 
 		&data->flexio_dma_handle, &data->rx_xfer);
 	if( s!= kStatus_Success )
-	{
+	{		
 		LOG_ERR("Failed setup DMA for receiving!");
-		return -EIO;
 	}
 
 	return 0;
@@ -777,26 +786,24 @@ static void mcux_flexio_uart_isr(void *arg)
 #endif
 
 #if CONFIG_UART_ASYNC_API
-	//if( FLEXIO_UART_GetStatusFlags(data->cfg->base) & kFLEXIO_UART_RxDataRegFullFlag)
-	//{
-		LOG_DBG("Rx IRQ");
-		if (data->rx_xfer.dataSize && 
-			data->rx_waiting_for_irq) 
-		{
-			data->rx_waiting_for_irq = false;
-			// Disable Rx IRQ, the reset will be handled by the timeout & DMA IRQ
-			FLEXIO_UART_DisableInterrupts(data->cfg->base,
-				kFLEXIO_UART_RxDataRegFullInterruptEnable);
+	
+	if (data->rx_xfer.dataSize && 
+		data->rx_waiting_for_irq) 
+	{
+		LOG_DBG("FlexIO UART IRQ");
+		data->rx_waiting_for_irq = false;
+		// Disable Rx IRQ, the reset will be handled by the timeout & DMA IRQ
+		FLEXIO_UART_DisableInterrupts(data->cfg->base,
+			kFLEXIO_UART_RxDataRegFullInterruptEnable);
 
-			/* Receive started, so request the next buffer */
-			if (data->rx_next_xfer.dataSize == 0U && data->async_cb) {
-				struct uart_event evt = {
-					.type = UART_RX_BUF_REQUEST,
-				};
-
-				data->async_cb(&evt, data->async_cb_data);
-			}
+		/* Receive started, so request the next buffer */
+		if (data->rx_next_xfer.dataSize == 0U && data->async_cb) {
+			struct uart_event evt = {
+				.type = UART_RX_BUF_REQUEST,
+			};
+			data->async_cb(&evt, data->async_cb_data);
 		}
+
 		// If work is already submitted, this will reset the timer
 		if (data->rx_timeout_time != K_FOREVER) 
 		{
@@ -805,24 +812,10 @@ static void mcux_flexio_uart_isr(void *arg)
 			k_delayed_work_submit(&data->rx_timeout_work,
 						data->rx_timeout_chunk);
 		}
-		FLEXIO_UART_ClearStatusFlags(data->cfg->base,
-			kFLEXIO_UART_RxDataRegFullFlag | kFLEXIO_UART_RxOverRunFlag);
-
-		// DMA was already armed in tx_enable()
-	//}
-
+	}
 
 #endif
-/*
-	FLEXIO_UART_ClearStatusFlags(data->cfg->base,
-		kFLEXIO_UART_TxDataRegEmptyFlag \
-		| kFLEXIO_UART_RxDataRegFullFlag \
-		| kFLEXIO_UART_RxOverRunFlag
-	);
-	*/
-
 }
-
 #endif
 
 
