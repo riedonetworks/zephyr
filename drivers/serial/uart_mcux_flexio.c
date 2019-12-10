@@ -17,7 +17,7 @@
 #include <soc.h>
 
 
-#define LOG_LEVEL LOG_LEVEL_WRN
+#define LOG_LEVEL LOG_LEVEL_DGB
 #include <logging/log.h>
 LOG_MODULE_REGISTER(flexio_uart);
 
@@ -61,11 +61,15 @@ struct mcux_flexio_uart_data {
 	// Rx
 	edma_handle_t rx_dma_handle;
 	struct k_delayed_work rx_timeout_work;
-	u32_t rx_timeout;
+	size_t rx_timeout_time;
+	size_t rx_timeout_chunk;
+	u32_t rx_timeout_start;
+
 	flexio_uart_transfer_t rx_xfer;
 	flexio_uart_transfer_t rx_next_xfer;
 	size_t rx_processed_len;
 	bool rx_waiting_for_irq;
+	bool rx_timeout_from_isr;
 
 #endif
 };
@@ -82,6 +86,7 @@ static void  mcux_flexio_uartnotify_rx_processed(struct mcux_flexio_uart_data *d
 	}
 
 	if (dev_data->rx_processed_len == processed) {
+		LOG_DBG("All byte alread processed, returning");
 		return;
 	}
 
@@ -186,7 +191,7 @@ static void mcux_flexio_uart_dma_cb(FLEXIO_UART_Type *base,
 
 		// TODO: Handle Rx timeout
 		k_delayed_work_submit(&data->rx_timeout_work,
-					data->rx_timeout);
+					data->rx_timeout_time);
 
 		if (data->async_cb) 
 		{
@@ -257,28 +262,80 @@ static void mcux_flex_io_uart_rx_timeout(struct k_work *work)
 	struct mcux_flexio_uart_data *data = CONTAINER_OF(work,
 							struct mcux_flexio_uart_data, rx_timeout_work);
 
-	size_t rx_count;
+	int key = irq_lock();
+
+	if (data->rx_xfer.dataSize == 0)
+	{
+		LOG_DBG("Rx Timeout, but transfer ended.");
+		irq_unlock(key);
+		return;
+	}
+
+	size_t pending_length;
 	if( FLEXIO_UART_TransferGetReceiveCountEDMA(data->cfg->base,
-			&data->flexio_dma_handle, &rx_count) != kStatus_Success)
+			&data->flexio_dma_handle, &pending_length) != kStatus_Success)
 	{
 		LOG_ERR("Failed getting Received count from DMA!");
+		irq_unlock(key);
 		return;
 	}
-	
-	LOG_DBG("Rx Timeout occured (received = %d)", rx_count);
 
-	if( rx_count == data->rx_xfer.dataSize)
+		
+	LOG_DBG("Rx Timeout occured (received = %d)", pending_length);
+
+	/* Ignore it if the transfer has completed (nothing
+	 * pending) that means the DMA ISR is already pending, so just let
+	 * it handle things instead when we re-enable IRQs.
+	 */
+	if( pending_length == 0U)
 	{
-		LOG_DBG("Discarding Rx timout with recevied count of %d", rx_count);
+		LOG_WRN("pending lenght is zero!");
+		irq_unlock(key);
 		return;
 	}
-			
-	if( rx_count != 0U)
+	if( pending_length == data->rx_xfer.dataSize)
 	{
-		mcux_flexio_uartnotify_rx_processed(data, rx_count);
+		LOG_WRN("Discarding Rx timout with recevied count of %d", pending_length);
+		irq_unlock(key);
+		return;
 	}
 
 
+	/*
+	 * Never do a notify on a timeout started from the ISR: timing
+	 * granularity means the first timeout can be in the middle
+	 * of reception but still have the total elapsed time exhausted.
+	 * So we require a timeout chunk with no data seen at all
+	 * (i.e. no ISR entry).
+	 */
+	if (data->rx_timeout_from_isr) {
+		data->rx_timeout_from_isr = false;
+		k_delayed_work_submit(&data->rx_timeout_work,
+				      data->rx_timeout_chunk);
+		irq_unlock(key);
+		return;
+	}
+
+	u32_t now = k_uptime_get_32();
+	u32_t elapsed = now - data->rx_timeout_start;
+
+	if (elapsed >= data->rx_timeout_time) {
+		/*
+		 * No time left, so call the handler, and let the ISR
+		 * restart the timeout when it sees data.
+		 */
+		mcux_flexio_uartnotify_rx_processed(data, pending_length);
+	} else {
+		/*
+		 * Still have time left, so start another timeout.
+		 */
+		u32_t remaining = MIN(data->rx_timeout_time - elapsed,
+				      data->rx_timeout_chunk);
+
+		k_delayed_work_submit(&data->rx_timeout_work, remaining);
+	}
+
+	irq_unlock(key);
 }
 
 static int mcux_flexio_uart_callback_set(struct device *dev, uart_callback_t callback,void *user_data)
@@ -368,9 +425,11 @@ static int mcux_flexio_uart_rx_enable(struct device *dev, u8_t *buf, size_t len,
 	// store arguments
 	data->rx_xfer.data = buf;
 	data->rx_xfer.dataSize = len;
-	data->rx_timeout = timeout;
+	data->rx_timeout_time = timeout;
+	data->rx_timeout_chunk = MAX(timeout / 4U, 1);
 	data->rx_processed_len = 0U;
 	data->rx_waiting_for_irq = true;
+	data->rx_timeout_from_isr = true;
 
 
 	LOG_DBG("Setup async receive of %d bytes to %p", 
@@ -718,30 +777,40 @@ static void mcux_flexio_uart_isr(void *arg)
 #endif
 
 #if CONFIG_UART_ASYNC_API
+	//if( FLEXIO_UART_GetStatusFlags(data->cfg->base) & kFLEXIO_UART_RxDataRegFullFlag)
+	//{
+		LOG_DBG("Rx IRQ");
+		if (data->rx_xfer.dataSize && 
+			data->rx_waiting_for_irq) 
+		{
+			data->rx_waiting_for_irq = false;
+			// Disable Rx IRQ, the reset will be handled by the timeout & DMA IRQ
+			FLEXIO_UART_DisableInterrupts(data->cfg->base,
+				kFLEXIO_UART_RxDataRegFullInterruptEnable);
 
-	//LOG_DBG("Rx IRQ");
-	if (data->rx_xfer.dataSize && 
-		data->rx_waiting_for_irq) 
-	{
-		data->rx_waiting_for_irq = false;
+			/* Receive started, so request the next buffer */
+			if (data->rx_next_xfer.dataSize == 0U && data->async_cb) {
+				struct uart_event evt = {
+					.type = UART_RX_BUF_REQUEST,
+				};
 
-		/* Receive started, so request the next buffer */
-		if (data->rx_next_xfer.dataSize == 0U && data->async_cb) {
-			struct uart_event evt = {
-				.type = UART_RX_BUF_REQUEST,
-			};
-
-			data->async_cb(&evt, data->async_cb_data);
+				data->async_cb(&evt, data->async_cb_data);
+			}
 		}
-	}
-	// If work is already submitted, this will reset the timer
-	if (data->rx_timeout != K_FOREVER) 
-	{
-		k_delayed_work_submit(&data->rx_timeout_work,
-					data->rx_timeout);
-	}
-	FLEXIO_UART_ClearStatusFlags(data->cfg->base,
-		kFLEXIO_UART_RxDataRegFullFlag | kFLEXIO_UART_RxOverRunFlag);
+		// If work is already submitted, this will reset the timer
+		if (data->rx_timeout_time != K_FOREVER) 
+		{
+			data->rx_timeout_from_isr = true;
+			data->rx_timeout_start = k_uptime_get_32();
+			k_delayed_work_submit(&data->rx_timeout_work,
+						data->rx_timeout_chunk);
+		}
+		FLEXIO_UART_ClearStatusFlags(data->cfg->base,
+			kFLEXIO_UART_RxDataRegFullFlag | kFLEXIO_UART_RxOverRunFlag);
+
+		// DMA was already armed in tx_enable()
+	//}
+
 
 #endif
 /*
