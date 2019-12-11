@@ -73,7 +73,10 @@ void ili9340_lcd_init(struct ili9340_data *p_ili9340)
 	ili9340_transmit(p_ili9340, cmd, NULL, 0);  
 
 	cmd = 0x36;    //Memory Data Access Control
-	data[0] = (0x28);       //D3=¡¥1¡¦ =BGR color filter panel)	rgb/ bgr
+	data[0] = ILI9340_DATA_MEM_ACCESS_CTRL_MX 
+		| ILI9340_DATA_MEM_ACCESS_CTRL_MY 
+		| ILI9340_DATA_MEM_ACCESS_CTRL_MV 
+		| ILI9340_DATA_MEM_ACCESS_CTRL_BGR;       //D3=¡¥1¡¦ =BGR color filter panel)	rgb/ bgr
 	ili9340_transmit(p_ili9340, cmd, data, 1);
 
 #ifdef CONFIG_ILI9340_RGB565
