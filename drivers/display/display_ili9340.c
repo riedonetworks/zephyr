@@ -489,8 +489,8 @@ static void ili9340_get_capabilities(const struct device *dev,
 	}
 	else
 	{
-		capabilities->x_resolution = 320U;
-		capabilities->y_resolution = 240U;
+	capabilities->x_resolution = 320U;
+	capabilities->y_resolution = 240U;
 	}
 #ifdef CONFIG_ILI9340_RGB565
 	capabilities->supported_pixel_formats = PIXEL_FORMAT_RGB_565;
