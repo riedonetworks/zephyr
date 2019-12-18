@@ -18,7 +18,7 @@
 
 
 #include <logging/log.h>
-LOG_MODULE_REGISTER(flexio_uart, LOG_LEVEL_INF);
+LOG_MODULE_REGISTER(uart_mcux_flexio, LOG_LEVEL_INF);
 
 struct mcux_flexio_uart_config {
 	FLEXIO_UART_Type *base;
@@ -108,12 +108,12 @@ static void mcux_flexio_uart_dma_cb(FLEXIO_UART_Type *base,
                               status_t status,
                               void *userData)
 {
-	struct mcux_flexio_uart_data *data = userData;
+	struct mcux_flexio_uart_data* data = (struct mcux_flexio_uart_data*)userData;
 
 
 	if (kStatus_FLEXIO_UART_TxIdle == status)
     {
-		//LOG_DBG("DMA call-back: TxIdle");
+		LOG_DBG("DMA call-back: TxIdle");
 
 		// Cancel the timeout
 		k_delayed_work_cancel(&data->tx_timeout_work);
@@ -297,7 +297,7 @@ static void mcux_flex_io_uart_rx_timeout(struct k_work *work)
 	// Let it porcess the work for us!
 	if( pending_length == data->rx_xfer.dataSize)
 	{
-		LOG_WRN("Discarding Rx timout with recevied count of %d", pending_length);
+		LOG_DBG("Discarding Rx timout with recevied count of %d", pending_length);
 		k_delayed_work_submit(&data->rx_timeout_work,
 				      data->rx_timeout_chunk);
 		irq_unlock(key);
@@ -380,7 +380,7 @@ static int mcux_flexio_uart_tx(struct device *dev, const u8_t *buf, size_t len,
 	data->tx_xfer.data = (u8_t*)buf;
 	data->tx_xfer.dataSize = len;
 
-	LOG_DBG("Sending %d bytes from %p", 
+	LOG_DBG("%s: Sending %d bytes from %p", dev->config->name,
 			data->tx_xfer.dataSize, data->tx_xfer.data
 	);
 
@@ -397,6 +397,7 @@ static int mcux_flexio_uart_tx(struct device *dev, const u8_t *buf, size_t len,
 	);
 	if (s != kStatus_Success)
 	{
+		LOG_ERR("Failled setup DMA Tx Transfer!");
 		retval = -EIO;
 		goto err;
 	}
@@ -583,6 +584,8 @@ static void mcux_flexio_dma_rx_isr(void *arg)
 {
 	struct device *dev = arg;
 	struct mcux_flexio_uart_data *data = dev->driver_data;
+
+	LOG_DBG("channel: %d", data->rx_dma_handle.channel);
 
 	EDMA_HandleIRQ(&data->rx_dma_handle);
 }
@@ -820,6 +823,7 @@ static void mcux_flexio_uart_isr(void *arg)
 
 
 
+bool dma_initized = false;
 
 static int mcux_flexio_uart_init(struct device *dev)
 {
@@ -838,6 +842,7 @@ static int mcux_flexio_uart_init(struct device *dev)
 				   &clock_freq)) {
 		return -EINVAL;
 	}
+	LOG_INF("Initalizing FlexIO-UART \"%s\"", dev->config->name);
 	LOG_DBG("Clock freq: %d MHz", clock_freq/1000000);
 	LOG_INF("target baudrade: %d", config->baud_rate);
 	LOG_DBG("TX pin: %d", config->base->TxPinIndex);
@@ -978,17 +983,23 @@ static int mcux_flexio_uart_init(struct device *dev)
 	status_t s;
 	// Intialize the DMA & DMAMUX
 	edma_config_t edma_config;
-	DMAMUX_Init(DMAMUX);
-    EDMA_GetDefaultConfig(&edma_config);
-	edma_config.enableDebugMode = true; 
-    EDMA_Init(DMA0, &edma_config);
+	if (!dma_initized)
+	{
+		DMAMUX_Init(DMAMUX);
+		EDMA_GetDefaultConfig(&edma_config);
+		//edma_config.enableDebugMode = true; 
+		EDMA_Init(DMA0, &edma_config);
+		dma_initized = true;
+	}
 
 	// Tx Mux and handle
+	LOG_DBG("%s: Assign source %d to channel %d", dev->config->name, config->tx_dma_source, config->tx_dma_channel);
 	DMAMUX_SetSource(DMAMUX, config->tx_dma_channel, config->tx_dma_source);
     DMAMUX_EnableChannel(DMAMUX, config->tx_dma_channel);
     EDMA_CreateHandle(&data->tx_dma_handle, DMA0, config->tx_dma_channel);
 
 	// Rx Mux and handle
+	LOG_DBG("%s: Assign source %d to channel %d", dev->config->name, config->rx_dma_source, config->rx_dma_channel);
     DMAMUX_SetSource(DMAMUX, config->rx_dma_channel, config->rx_dma_source);
     DMAMUX_EnableChannel(DMAMUX, config->rx_dma_channel);
     EDMA_CreateHandle(&data->rx_dma_handle, DMA0, config->rx_dma_channel);
@@ -1104,6 +1115,7 @@ DEVICE_AND_API_INIT(flexio_uart_0, DT_INST_0_NXP_IMXRT_FLEXIO_UART_LABEL,
 #if defined(CONFIG_UART_INTERRUPT_DRIVEN) || defined(CONFIG_UART_ASYNC_API)
 static void mcux_flexio_uart_config_func_0(struct device *dev)
 {
+	LOG_DBG("Inst0: Connecting IRQs");
 	IRQ_CONNECT(DT_INST_0_NXP_IMXRT_FLEXIO_UART_IRQ_0,
 		    DT_INST_0_NXP_IMXRT_FLEXIO_UART_IRQ_0_PRIORITY,
 		    mcux_flexio_uart_isr, DEVICE_GET(flexio_uart_0), 0);
@@ -1177,30 +1189,29 @@ static struct mcux_flexio_uart_data mcux_flexio_uart_1_data;
 DEVICE_AND_API_INIT(flexio_uart_1, DT_INST_1_NXP_IMXRT_FLEXIO_UART_LABEL,
 		    &mcux_flexio_uart_init,
 		    &mcux_flexio_uart_1_data, &mcux_flexio_uart_1_config,
-		    PRE_KERNEL_2, CONFIG_KERNEL_INIT_PRIORITY_DEVICE,
+		    PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEVICE,
 		    &mcux_flexio_uart_driver_api);
 
 #if defined(CONFIG_UART_INTERRUPT_DRIVEN) || defined(CONFIG_UART_ASYNC_API)
 static void mcux_flexio_uart_config_func_1(struct device *dev)
 {
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
+	LOG_DBG("Inst1: Connecting IRQs");
 	IRQ_CONNECT(DT_INST_1_NXP_IMXRT_FLEXIO_UART_IRQ_0,
 		    DT_INST_1_NXP_IMXRT_FLEXIO_UART_IRQ_0_PRIORITY,
 		    mcux_flexio_uart_isr, DEVICE_GET(flexio_uart_1), 0);
 
 	irq_enable(DT_INST_1_NXP_IMXRT_FLEXIO_UART_IRQ_0);
-#endif
 
 #ifdef CONFIG_UART_ASYNC_API
 	IRQ_CONNECT(2,
-		    DT_INST_0_NXP_IMXRT_FLEXIO_UART_IRQ_0_PRIORITY,
-		    mcux_flexio_dma_tx_isr, DEVICE_GET(flexio_uart_0), 0);
+		    DT_INST_1_NXP_IMXRT_FLEXIO_UART_IRQ_0_PRIORITY,
+		    mcux_flexio_dma_tx_isr, DEVICE_GET(flexio_uart_1), 0);
 
 	irq_enable(2);
 
 	IRQ_CONNECT(3,
-		    DT_INST_0_NXP_IMXRT_FLEXIO_UART_IRQ_0_PRIORITY,
-		    mcux_flexio_dma_rx_isr, DEVICE_GET(flexio_uart_0), 0);
+		    DT_INST_1_NXP_IMXRT_FLEXIO_UART_IRQ_0_PRIORITY,
+		    mcux_flexio_dma_rx_isr, DEVICE_GET(flexio_uart_1), 0);
 
 	irq_enable(3);
 #endif
