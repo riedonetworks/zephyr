@@ -74,6 +74,47 @@ static int mcux_ccm_get_subsys_rate(struct device *dev,
 
 		break;
 
+	case IMX_CCM_FLEXIO1_CLK:
+		switch (CLOCK_GetMux(kCLOCK_Flexio1Mux))
+		{
+			case 0:
+				*rate = CLOCK_GetFreq(kCLOCK_AudioPllClk);
+				break;
+			case 1:
+				*rate = CLOCK_GetFreq(kCLOCK_Usb1PllPfd2Clk);
+				break;
+			case 2:
+				*rate = CLOCK_GetFreq(kCLOCK_VideoPllClk);
+				break;
+			case 3:
+				*rate = CLOCK_GetFreq(kCLOCK_Usb1PllClk) ;
+				break;
+		}
+		*rate /= (CLOCK_GetDiv(kCLOCK_Flexio1PreDiv) + 1);
+		*rate /= (CLOCK_GetDiv(kCLOCK_Flexio1Div) + 1);
+		break;
+
+	case IMX_CCM_FLEXIO2_CLK:
+		switch (CLOCK_GetMux(kCLOCK_Flexio2Mux))
+		{
+			case 0:
+				*rate = CLOCK_GetFreq(kCLOCK_AudioPllClk);
+				break;
+			case 1:
+				*rate = CLOCK_GetFreq(kCLOCK_Usb1PllPfd2Clk);
+				break;
+			case 2:
+				*rate = CLOCK_GetFreq(kCLOCK_VideoPllClk);
+				break;
+			case 3:
+				*rate = CLOCK_GetFreq(kCLOCK_Usb1PllClk) ;
+				break;
+		}
+		*rate /= (CLOCK_GetDiv(kCLOCK_Flexio2PreDiv) + 1);
+		*rate /= (CLOCK_GetDiv(kCLOCK_Flexio2Div) + 1);
+		break;
+
+
 #ifdef CONFIG_DISK_ACCESS_USDHC1
 	case IMX_CCM_USDHC1_CLK:
 		*rate = CLOCK_GetSysPfdFreq(kCLOCK_Pfd0) /

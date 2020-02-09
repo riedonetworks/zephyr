@@ -128,3 +128,21 @@ arduino_serial: &uart3 {};
 	pwr-gpios = <&gpio1 5 0>;
 	cd-gpios = <&gpio2 28 0>;
 };
+
+&flexio1 {
+	status = "okay";
+	current-speed = <115200>;
+	txd-signal = <1>;
+	rxd-signal = <2>;
+};
+
+&flexio2 {
+	status = "okay";
+	current-speed = <1500000>;
+	//current-speed = <115200>;
+	clock-config = <3 1 1>;
+	txd-signal = <6>;
+	txclk-signal= <7>;
+	rxd-signal = <8>;
+	//rxclk-signal= <9>;
+};

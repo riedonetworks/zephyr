@@ -1,0 +1,33 @@
+# Kconfig - MCUXpresso SDK LPUART
+#
+# Copyright (c) 2017, NXP
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menuconfig UART_MCUX_FLEXIO
+	bool "MCUX FlexIO driver"
+	depends on HAS_MCUX_LPUART && CLOCK_CONTROL && SOC_SERIES_IMX_RT
+	select SERIAL_HAS_DRIVER
+	select SERIAL_SUPPORT_INTERRUPT
+	select SERIAL_SUPPORT_ASYNC
+	select INIT_USB1_PLL
+	help
+	  Enable the MCUX FlexIO driver.
+	  This Driver emulate UART protocol using FlexIO periferal.
+
+if UART_MCUX_FLEXIO
+
+config UART_MCUX_FLEXIO_UART_1
+	bool "UART on FlexIO 1"
+	help
+	  Enable UART on FlexIO 1.
+
+config UART_MCUX_FLEXIO_UART_2
+	bool "UART on FlexIO 2"
+	help
+	  Enable UART on FlexIO 2.
+
+
+
+endif # UART_MCUX_FLEXIO

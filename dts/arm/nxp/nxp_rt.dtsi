@@ -547,6 +547,24 @@
 			clocks = <&ccm IMX_CCM_USDHC2_CLK 0 0>;
 			label = "USDHC_2";
 		};
+
+		flexio1: flexio@401ac000  {
+			compatible = "nxp,imxrt-flexio-uart";
+			reg = <0x401ac000 0x4000>;
+			interrupts = <90 0>;
+			clocks = <&ccm IMX_CCM_FLEXIO1_CLK 0x7c 2>;
+			label = "FLEXIO_1";
+			status = "disabled";
+		};
+
+		flexio2: flexio@401b0000 {
+			compatible = "nxp,imxrt-flexio-uart";
+			reg = <0x401b0000 0x4000>;
+			interrupts = <91 0>;
+			clocks = <&ccm IMX_CCM_FLEXIO2_CLK 0x74 0>;
+			label = "FLEXIO_2";
+			status = "disabled";
+		};
 	};
 };
 
