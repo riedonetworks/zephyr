@@ -481,8 +481,8 @@ static void ili9340_get_capabilities(const struct device *dev,
 {
 	struct ili9340_data* dev_data  = dev->driver_data;
 	memset(capabilities, 0, sizeof(struct display_capabilities));
-	if (capabilities->current_orientation == DISPLAY_ORIENTATION_ROTATED_90 
-		|| capabilities->current_orientation == DISPLAY_ORIENTATION_ROTATED_270)
+	if (dev_data->current_orientation == DISPLAY_ORIENTATION_NORMAL 
+		|| dev_data->current_orientation == DISPLAY_ORIENTATION_ROTATED_180)
 	{
 		capabilities->x_resolution = 240U;
 		capabilities->y_resolution = 320U;
