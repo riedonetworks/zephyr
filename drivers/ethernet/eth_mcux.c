@@ -814,9 +814,14 @@ static int eth_0_init(struct device *dev)
 	k_delayed_work_init(&context->delayed_phy_work,
 			    eth_mcux_delayed_phy_work);
 
+	sys_clock = CLOCK_GetFreq(kCLOCK_CoreSysClk);
+
+	//PHY_Init(ENET, 0, sys_clock);
+	CLOCK_EnableClock(kCLOCK_Enet);
+    ENET_SetSMI(ENET, sys_clock, false);
+
 	eth_mcux_phy_setup();
 
-	sys_clock = CLOCK_GetFreq(kCLOCK_CoreSysClk);
 
 	ENET_GetDefaultConfig(&enet_config);
 	enet_config.interrupt |= kENET_RxFrameInterrupt;
