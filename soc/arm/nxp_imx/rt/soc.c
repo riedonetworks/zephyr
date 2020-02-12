@@ -55,7 +55,7 @@ const clock_enet_pll_config_t ethPllConfig = {
 #ifdef CONFIG_ETH_MCUX
 	.enableClkOutput = true,
 #endif
-	.enableClkOutput25M = false,
+	.enableClkOutput25M = true,
 	.loopDivider = 1,
 };
 #endif
@@ -219,6 +219,8 @@ static ALWAYS_INLINE void clock_init(void)
 	//CLOCK_EnableClock(kCLOCK_SemcExsc);
 	CLOCK_SetMux(kCLOCK_SemcMux, 1);
     CLOCK_SetDiv(kCLOCK_SemcDiv, 1);
+
+
 
 	/* Keep the system clock running so SYSTICK can wake up the system from
 	 * wfi.
