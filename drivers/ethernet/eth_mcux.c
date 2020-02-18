@@ -820,13 +820,6 @@ static int eth_0_init(struct device *dev)
 
 	sys_clock = CLOCK_GetFreq(kCLOCK_CoreSysClk);
 
-	//PHY_Init(ENET, 0, sys_clock);
-	CLOCK_EnableClock(kCLOCK_Enet);
-    ENET_SetSMI(ENET, sys_clock, false);
-
-	eth_mcux_phy_setup();
-
-
 	ENET_GetDefaultConfig(&enet_config);
 	enet_config.interrupt |= kENET_RxFrameInterrupt;
 	enet_config.interrupt |= kENET_TxFrameInterrupt;
@@ -878,6 +871,11 @@ static int eth_0_init(struct device *dev)
 #endif
 
 	ENET_SetSMI(ENET, sys_clock, false);
+
+	// Shall PHY_Init be called here?
+	// PHY_Init(ENET, 0, sys_clock);
+
+	eth_mcux_phy_setup();
 
 	LOG_DBG("MAC %02x:%02x:%02x:%02x:%02x:%02x",
 		context->mac_addr[0], context->mac_addr[1],
