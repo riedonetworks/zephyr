@@ -499,7 +499,9 @@ static void eth_mcux_phy_setup(void)
 	u32_t oms_override_reg;
 	u32_t res;
 
-	/* Prevent PHY entering NAND Tree mode override. */
+	/*
+	 * Prevent PHY entering NAND tree mode and force normal operation.
+	 */
 	res = ENET_SMIRead(ENET, phy_addr, PHY_OMS_OVERRIDE_REG, &oms_override_reg);
 	if (res != 0)
 	{
@@ -507,15 +509,13 @@ static void eth_mcux_phy_setup(void)
 			PHY_OMS_OVERRIDE_REG);
 	}
 	else {
-		if (oms_override_reg & PHY_OMS_NANDTREE_MASK) {
-			oms_override_reg &= ~PHY_OMS_NANDTREE_MASK;
-			res = ENET_SMIWrite(ENET, phy_addr, PHY_OMS_OVERRIDE_REG,
-				oms_override_reg);
-			if (res != 0)
-			{
-				LOG_WRN("Writing PHY register 0x%02x timed out",
-					PHY_OMS_OVERRIDE_REG);
-			}
+		oms_override_reg &= ~PHY_OMS_NANDTREE_MASK;
+		oms_override_reg &= ~PHY_OMS_FACTORY_MODE_MASK;
+		res = ENET_SMIWrite(ENET, phy_addr, PHY_OMS_OVERRIDE_REG, oms_override_reg);
+		if (res != 0)
+		{
+			LOG_WRN("Writing PHY register 0x%02x timed out",
+				PHY_OMS_OVERRIDE_REG);
 		}
 	}
 #endif
