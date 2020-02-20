@@ -490,8 +490,9 @@ static int ENET_SMIWrite(ENET_Type *base, u32_t phyAddr, u32_t phyReg, u32_t dat
 	return res;
 }
 
-#endif
+#endif /* CONFIG_SOC_SERIES_IMX_RT */
 
+#ifdef CONFIG_ETH_MCUX_PHY_EXTRA_DEBUG
 static void eth_mcux_phy_dump_reg(void)
 {
 #ifdef CONFIG_SOC_SERIES_IMX_RT
@@ -525,6 +526,7 @@ static void eth_mcux_phy_dump_reg(void)
 	}
 #endif
 }
+#endif /* CONFIG_ETH_MCUX_PHY_EXTRA_DEBUG */
 
 static void eth_mcux_phy_setup(void)
 {
