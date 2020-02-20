@@ -492,6 +492,40 @@ static int ENET_SMIWrite(ENET_Type *base, u32_t phyAddr, u32_t phyReg, u32_t dat
 
 #endif
 
+static void eth_mcux_phy_dump_reg(void)
+{
+#ifdef CONFIG_SOC_SERIES_IMX_RT
+	const u32_t phy_addr = 0U;
+	u32_t regs[] = {
+		PHY_BASICCONTROL_REG,
+		PHY_BASICSTATUS_REG,
+		PHY_ID1_REG,
+		PHY_ID2_REG,
+		PHY_AUTONEG_ADVERTISE_REG,
+		PHY_OMS_OVERRIDE_REG,
+		PHY_OMS_STATUS_REG,
+		PHY_CONTROL1_REG,
+		PHY_CONTROL2_REG,
+	};
+
+	for (size_t i = 0; i < ARRAY_SIZE(regs); i++)
+	{
+		u32_t val;
+		int res;
+
+		res = ENET_SMIRead(ENET, phy_addr, regs[i], &val);
+		if (res == 0)
+		{
+			LOG_INF("PHY register 0x%02x=0x%04x", regs[i], val);
+		}
+		else
+		{
+			LOG_WRN("Reading PHY register 0x%02x timed out", regs[i]);
+		}
+	}
+#endif
+}
+
 static void eth_mcux_phy_setup(void)
 {
 #ifdef CONFIG_SOC_SERIES_IMX_RT
@@ -979,7 +1013,13 @@ static int eth_0_init(struct device *dev)
 
 	ENET_SetSMI(ENET, sys_clock, false);
 
+#ifdef CONFIG_ETH_MCUX_PHY_EXTRA_DEBUG
+	eth_mcux_phy_dump_reg();
+#endif
 	eth_mcux_phy_setup();
+#ifdef CONFIG_ETH_MCUX_PHY_EXTRA_DEBUG
+	eth_mcux_phy_dump_reg();
+#endif
 
 	LOG_DBG("MAC %02x:%02x:%02x:%02x:%02x:%02x",
 		context->mac_addr[0], context->mac_addr[1],
