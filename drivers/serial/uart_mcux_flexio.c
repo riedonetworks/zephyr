@@ -19,7 +19,7 @@
 
 
 #include <logging/log.h>
-LOG_MODULE_REGISTER(uart_mcux_flexio, LOG_LEVEL_INF);
+LOG_MODULE_REGISTER(uart_mcux_flexio, LOG_LEVEL_DBG);
 
 struct mcux_flexio_uart_config {
 	FLEXIO_UART_Type *base;
@@ -39,6 +39,8 @@ struct mcux_flexio_uart_config {
 #endif
 };
 
+#define TCD_QUEUE_SIZE 3
+
 struct mcux_flexio_uart_data {
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
@@ -51,7 +53,6 @@ struct mcux_flexio_uart_data {
 
 	uart_callback_t async_cb;
 	void*           async_cb_data;
-	//flexio_uart_edma_handle_t flexio_dma_handle;
 
 	// Tx
 	edma_handle_t tx_dma_handle;
@@ -71,12 +72,26 @@ struct mcux_flexio_uart_data {
 	bool rx_waiting_for_irq;
 	bool rx_timeout_from_isr;
 
+	__attribute__((aligned(sizeof(edma_tcd_t)))) edma_tcd_t tcd_pool[TCD_QUEUE_SIZE];
+
+
 #endif
 };
 
 const flexio_uart_transfer_t NULL_XFER = {NULL, 0};
 
 #ifdef CONFIG_UART_ASYNC_API
+
+static void debug_dma()
+{
+	uint32_t dst = DMA0->TCD[1].DADDR;
+	uint32_t sga = DMA0->TCD[1].DLAST_SGA;
+	uint32_t esg = DMA0->TCD[1].CSR & DMA_CSR_ESG_MASK;
+
+	LOG_DBG("DMA.DADDR=%p", (void*)dst);
+	LOG_DBG("DMA.DLAST_SGA=%p", (void*)sga);
+	LOG_DBG("DMA.CSR[ESG]=%p", (void*)esg);
+}
 
 static void  mcux_flexio_uartnotify_rx_processed(struct mcux_flexio_uart_data *dev_data,
 					  size_t processed)
@@ -149,86 +164,78 @@ static void mcux_flexio_uart_dma_tx_cb(edma_handle_t *handle, void *param, bool 
 static void mcux_flexio_uart_dma_rx_cb(edma_handle_t *handle, void *param, bool transferDone, uint32_t tcds)
 {
 	struct mcux_flexio_uart_data* data = (struct mcux_flexio_uart_data*)param;
-    if (transferDone)
-    {
-		LOG_DBG("DMA call-back: RxIdle");
 
-		// If the next buffer is setup, imediatly restart the DMA
-		if (data->rx_next_xfer.dataSize) 
-		{
-			edma_transfer_config_t xferConfig;
-			EDMA_PrepareTransfer(&xferConfig, 
-									(void *)FLEXIO_UART_GetRxDataRegisterAddress(data->cfg->base),
-									sizeof(uint8_t),
-									data->rx_next_xfer.data, 
-									sizeof(uint8_t), 
-									sizeof(uint8_t), 
-									data->rx_next_xfer.dataSize, 
-									kEDMA_PeripheralToMemory);
-
-			EDMA_SubmitTransfer(&data->rx_dma_handle, &xferConfig);
-			EDMA_StartTransfer(&data->rx_dma_handle);
-		}
+	if (transferDone)
+	{
+		LOG_ERR("DMA call-back: Rx done (done=%d, %d tcds)", transferDone, tcds);
+	}
+	else
+	{
+		LOG_DBG("DMA call-back: Rx done (done=%d, %d tcds)", transferDone, tcds);
+	}
+	debug_dma();
 
 
-		// end of the buffer. If received lenght match buffer, 
-		// Notify the application about received data
-		mcux_flexio_uartnotify_rx_processed(data, data->rx_xfer.dataSize);
+	// end of the buffer. If received lenght match buffer, 
+	// Notify the application about received data
+	mcux_flexio_uartnotify_rx_processed(data, data->rx_xfer.dataSize);
+
+	if (data->async_cb) {
+		struct uart_event evt = {
+			.type = UART_RX_BUF_RELEASED,
+			.data.rx_buf = {
+				.buf = data->rx_xfer.data,
+			},
+		};
+
+		data->async_cb(&evt, data->async_cb_data);
+	}
+
+	// No next buffer, so end the transfer 
+	if (!data->rx_next_xfer.dataSize) {
+		data->rx_xfer.data = NULL;
+		data->rx_xfer.dataSize = 0U;
+
+		// Disable IRQ
+		FLEXIO_UART_DisableInterrupts(data->cfg->base, 
+				kFLEXIO_UART_RxDataRegFullInterruptEnable);
 
 		if (data->async_cb) {
 			struct uart_event evt = {
-				.type = UART_RX_BUF_RELEASED,
-				.data.rx_buf = {
-					.buf = data->rx_xfer.data,
-				},
+				.type = UART_RX_DISABLED,
 			};
 
 			data->async_cb(&evt, data->async_cb_data);
 		}
 
-		// No next buffer, so end the transfer 
-		if (!data->rx_next_xfer.dataSize) {
-			data->rx_xfer.data = NULL;
-			data->rx_xfer.dataSize = 0U;
-
-			// Disable IRQ
-			FLEXIO_UART_DisableInterrupts(data->cfg->base, 
-					kFLEXIO_UART_RxDataRegFullInterruptEnable);
-
-			if (data->async_cb) {
-				struct uart_event evt = {
-					.type = UART_RX_DISABLED,
-				};
-
-				data->async_cb(&evt, data->async_cb_data);
-			}
-
-			return;
-		}
-
-		data->rx_xfer = data->rx_next_xfer;
-		data->rx_processed_len = 0;
-		data->rx_next_xfer = NULL_XFER;
-
-		if (data->async_cb) 
-		{
-			struct uart_event evt = {
-				.type = UART_RX_BUF_REQUEST,
-			};
-
-			data->async_cb(&evt, data->async_cb_data);
-		}
-
-				// TODO: Handle Rx timeout
-		k_delayed_work_submit(&data->rx_timeout_work,
-					data->rx_timeout_chunk);
-
-		LOG_DBG("End of RxIdle");
-    }
-	else
-	{
-		LOG_ERR("Tx tranfers error");
+		return;
 	}
+
+	data->rx_xfer = data->rx_next_xfer;
+	data->rx_processed_len = 0;
+	data->rx_next_xfer = NULL_XFER;
+
+	/* Request next buffer*/
+	if (data->async_cb) 
+	{
+		struct uart_event evt = {
+			.type = UART_RX_BUF_REQUEST,
+		};
+
+		data->async_cb(&evt, data->async_cb_data);
+	}
+
+	data->rx_waiting_for_irq = true;
+	FLEXIO_UART_EnableInterrupts(data->cfg->base,
+			kFLEXIO_UART_RxDataRegFullInterruptEnable);
+
+
+	// TODO: Handle Rx timeout
+	k_delayed_work_submit(&data->rx_timeout_work,
+				data->rx_timeout_chunk);
+
+	LOG_DBG("End of RxIdle");
+
 
 }
 
@@ -293,6 +300,8 @@ static void mcux_flex_io_uart_rx_timeout(struct k_work *work)
 
 	int key = irq_lock();
 
+	debug_dma();
+
 	if (data->rx_xfer.dataSize == 0)
 	{
 		LOG_DBG("Rx Timeout, but transfer ended.");
@@ -311,12 +320,16 @@ static void mcux_flex_io_uart_rx_timeout(struct k_work *work)
 	 * pending) that means the DMA ISR is already pending, so just let
 	 * it handle things instead when we re-enable IRQs.
 	 */
+	#if 1
 	if( pending_length == 0U)
 	{
 		LOG_WRN("pending lenght is zero!");
+		k_delayed_work_submit(&data->rx_timeout_work,
+				      data->rx_timeout_chunk);
 		irq_unlock(key);
 		return;
 	}
+	#endif
 
 	// If received count is equal to buffer size, then the DMA ISR is pending. 
 	// Let it porcess the work for us!
@@ -329,10 +342,6 @@ static void mcux_flex_io_uart_rx_timeout(struct k_work *work)
 		return;
 	}
 
-	LOG_DBG("Re-enabling IRQs");
-	data->rx_waiting_for_irq = true;
-	FLEXIO_UART_EnableInterrupts(data->cfg->base,
-		kFLEXIO_UART_RxDataRegFullInterruptEnable);
 
 	/*
 	 * Never do a notify on a timeout started from the ISR: timing
@@ -357,6 +366,7 @@ static void mcux_flex_io_uart_rx_timeout(struct k_work *work)
 		 * No time left, so call the handler, and let the ISR
 		 * restart the timeout when it sees data.
 		 */
+		LOG_DBG("Notifiying %d bytes", pending_length - data->rx_processed_len);
 		mcux_flexio_uartnotify_rx_processed(data, pending_length);
 	} else {
 		/*
@@ -477,7 +487,7 @@ static int mcux_flexio_uart_rx_enable(struct device *dev, u8_t *buf, size_t len,
 	u8_t dummy;
 	mcux_flexio_uart_poll_in(dev, &dummy);
 
-	irq_unlock(key);
+	
 
 	// We will use the first ISR to trigger the Rx timeout timer
 	data->rx_waiting_for_irq = true;
@@ -499,6 +509,7 @@ static int mcux_flexio_uart_rx_enable(struct device *dev, u8_t *buf, size_t len,
 	EDMA_StartTransfer(&data->rx_dma_handle);
 	FLEXIO_UART_EnableRxDMA(config->base, true);
 
+	irq_unlock(key);
 	return 0;
 }
 
@@ -516,6 +527,7 @@ static int mcux_flexio_uart_rx_buf_rsp(struct device *dev, u8_t *buf, size_t len
 
 	if (data->rx_next_xfer.dataSize != 0U) {
 		retval = -EBUSY;
+		LOG_ERR("Overrinding next buffer!");
 		goto err;
 	}
 
@@ -837,6 +849,28 @@ static void mcux_flexio_uart_isr(void *arg)
 				.type = UART_RX_BUF_REQUEST,
 			};
 			data->async_cb(&evt, data->async_cb_data);
+
+
+		}
+
+		if (data->rx_next_xfer.dataSize != 0U )
+		{
+
+			edma_transfer_config_t xferConfig;
+			EDMA_PrepareTransfer(&xferConfig, 
+									(void *)FLEXIO_UART_GetRxDataRegisterAddress(data->cfg->base),
+									sizeof(uint8_t),
+									data->rx_next_xfer.data, 
+									sizeof(uint8_t), 
+									sizeof(uint8_t), 
+									data->rx_next_xfer.dataSize, 
+									kEDMA_PeripheralToMemory);
+
+			status_t s = EDMA_SubmitTransfer(&data->rx_dma_handle, &xferConfig);
+			if( s!= kStatus_Success)
+			{
+				LOG_ERR("Failed EDMA_SubmitTransfer()=%d", s);
+			}
 		}
 
 		// If work is already submitted, this will reset the timer
@@ -847,23 +881,7 @@ static void mcux_flexio_uart_isr(void *arg)
 			k_delayed_work_submit(&data->rx_timeout_work,
 						data->rx_timeout_chunk);
 		}
-
-		// Start Rx DMA 
-		// (Should we do it in re_enable()?)
-		//edma_transfer_config_t xferConfig;
-		//EDMA_PrepareTransfer(&xferConfig, 
-		//						(void *)FLEXIO_UART_GetRxDataRegisterAddress(config->base),
-		//						sizeof(uint8_t),
-        //                     	data->rx_xfer->data, 
-		//						sizeof(uint8_t), 
-		//						sizeof(uint8_t), 
-		//						data->rx_->dataSize, 
-		//						kEDMA_PeripheralToMemory);
-		//
-		//EDMA_SubmitTransfer(&data->rx_dma_handle, &xferConfig);
-		//EDMA_StartTransfer(&data->rx_dma_handle);
-		//FLEXIO_UART_EnableRxDMA(config->base, true);
-			
+		
 	}
 
 #endif
@@ -1035,7 +1053,7 @@ static int mcux_flexio_uart_init(struct device *dev)
 	{
 		DMAMUX_Init(DMAMUX);
 		EDMA_GetDefaultConfig(&edma_config);
-		//edma_config.enableDebugMode = true; 
+		edma_config.enableDebugMode = true; 
 		EDMA_Init(DMA0, &edma_config);
 		dma_initized = true;
 	}
@@ -1054,7 +1072,7 @@ static int mcux_flexio_uart_init(struct device *dev)
     EDMA_CreateHandle(&data->rx_dma_handle, DMA0, config->rx_dma_channel);
 	EDMA_SetCallback(&data->rx_dma_handle, mcux_flexio_uart_dma_rx_cb, data);
 
-	// TODO: Enable scatter-gatter by calling "EDMA_InstallTCDMemory()".
+	EDMA_InstallTCDMemory(&data->rx_dma_handle, data->tcd_pool, TCD_QUEUE_SIZE);
 
 	// Attache the IRQ to the ISR
 	config->irq_config_func(dev);
