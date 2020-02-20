@@ -395,21 +395,128 @@ static void eth_mcux_delayed_phy_work(struct k_work *item)
 	eth_mcux_phy_event(context);
 }
 
+#ifdef CONFIG_SOC_SERIES_IMX_RT
+
+#define PHY_TIMEOUT_COUNT 0xFFFFFU
+
+/**
+ * @brief Read a PHY register.
+ *
+ * Wrapper for ENET_StartSMIRead and ENET_ReadSMIData.
+ *
+ * @warning MII interrupt is disable during the read operation.
+ *
+ * @param base See ENET_StartSMIRead.
+ * @param phyAddr See ENET_StartSMIRead.
+ * @param phyReg See ENET_StartSMIRead.
+ * @param data Where to store the result.
+ * @return 0 on success, -1 on time out.
+ */
+static int ENET_SMIRead(ENET_Type *base, u32_t phyAddr, u32_t phyReg, u32_t *data)
+{
+	u32_t counter;
+	int res;
+
+	ENET_DisableInterrupts(base, ENET_EIR_MII_MASK);
+
+	ENET_StartSMIRead(base, phyAddr, phyReg, kENET_MiiReadValidFrame);
+	/* Wait for MII to complete. */
+	for (counter = PHY_TIMEOUT_COUNT; counter > 0; counter--)
+	{
+		if (ENET_GetInterruptStatus(base) & ENET_EIR_MII_MASK)
+		{
+			break;
+		}
+	}
+	/* Check for timeout. */
+	if (counter == 0)
+	{
+		res = -1;
+	}
+	else
+	{
+		*data = ENET_ReadSMIData(base);
+		res = 0;
+	}
+
+	ENET_ClearInterruptStatus(base, ENET_EIR_MII_MASK);
+
+	ENET_EnableInterrupts(base, ENET_EIR_MII_MASK);
+
+	return res;
+}
+
+/**
+ * @brief Write a PHY register.
+ *
+ * @warning MII interrupt is disable during the read operation.
+ *
+ * @param base See ENET_StartSMIRead.
+ * @param phyAddr See ENET_StartSMIRead.
+ * @param phyReg See ENET_StartSMIRead.
+ * @param data The data to write into the register.
+ * @return 0 on success, -1 on time out.
+ */
+static int ENET_SMIWrite(ENET_Type *base, u32_t phyAddr, u32_t phyReg, u32_t data)
+{
+	u32_t counter;
+	int res;
+
+	ENET_DisableInterrupts(base, ENET_EIR_MII_MASK);
+
+	ENET_StartSMIWrite(base, phyAddr, phyReg, kENET_MiiWriteValidFrame, data);
+	/* Wait for MII to complete. */
+	for (counter = PHY_TIMEOUT_COUNT; counter > 0; counter--)
+	{
+		if (ENET_GetInterruptStatus(base) & ENET_EIR_MII_MASK)
+		{
+			break;
+		}
+	}
+	/* Check for timeout. */
+	if (counter == 0)
+	{
+		res = -1;
+	}
+	else
+	{
+		res = 0;
+	}
+
+	ENET_ClearInterruptStatus(base, ENET_EIR_MII_MASK);
+
+	ENET_EnableInterrupts(base, ENET_EIR_MII_MASK);
+
+	return res;
+}
+
+#endif
+
 static void eth_mcux_phy_setup(void)
 {
 #ifdef CONFIG_SOC_SERIES_IMX_RT
 	const u32_t phy_addr = 0U;
-	u32_t status;
+	u32_t oms_override_reg;
+	u32_t res;
 
-	/* Prevent PHY entering NAND Tree mode override*/
-	ENET_StartSMIRead(ENET, phy_addr, PHY_OMS_STATUS_REG,
-		kENET_MiiReadValidFrame);
-	status = ENET_ReadSMIData(ENET);
-
-	if (status & PHY_OMS_NANDTREE_MASK) {
-		status &= ~PHY_OMS_NANDTREE_MASK;
-		ENET_StartSMIWrite(ENET, phy_addr, PHY_OMS_OVERRIDE_REG,
-			kENET_MiiWriteValidFrame, status);
+	/* Prevent PHY entering NAND Tree mode override. */
+	res = ENET_SMIRead(ENET, phy_addr, PHY_OMS_OVERRIDE_REG, &oms_override_reg);
+	if (res != 0)
+	{
+		LOG_WRN("Reading PHY register 0x%02x timed out",
+			PHY_OMS_OVERRIDE_REG);
+	}
+	else {
+		if (oms_override_reg & PHY_OMS_NANDTREE_MASK) {
+			oms_override_reg &= ~PHY_OMS_NANDTREE_MASK;
+			res = ENET_SMIWrite(ENET, phy_addr, PHY_OMS_OVERRIDE_REG,
+				oms_override_reg);
+			if (res != 0)
+			{
+				LOG_WRN("Writing PHY register 0x%02x timed out",
+					PHY_OMS_OVERRIDE_REG);
+			}
+		}
 	}
 #endif
 }
@@ -871,9 +978,6 @@ static int eth_0_init(struct device *dev)
 #endif
 
 	ENET_SetSMI(ENET, sys_clock, false);
-
-	// Shall PHY_Init be called here?
-	// PHY_Init(ENET, 0, sys_clock);
 
 	eth_mcux_phy_setup();
 
