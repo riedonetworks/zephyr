@@ -19,7 +19,7 @@
 
 
 #include <logging/log.h>
-LOG_MODULE_REGISTER(uart_mcux_flexio, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(uart_mcux_flexio, LOG_LEVEL_INF);
 
 struct mcux_flexio_uart_config {
 	FLEXIO_UART_Type *base;
@@ -159,15 +159,7 @@ static void mcux_flexio_uart_dma_rx_cb(edma_handle_t *handle, void *param, bool 
 {
 	struct mcux_flexio_uart_data* data = (struct mcux_flexio_uart_data*)param;
 
-	if (transferDone)
-	{
-		LOG_ERR("DMA call-back: Rx done (done=%d, %d tcds)", transferDone, tcds);
-	}
-	else
-	{
-		LOG_DBG("DMA call-back: Rx done (done=%d, %d tcds)", transferDone, tcds);
-	}
-
+	LOG_DBG("DMA call-back: Rx done (done=%d, %d tcds)", transferDone, tcds);
 
 	// end of the buffer. If received lenght match buffer, 
 	// Notify the application about received data
@@ -189,7 +181,7 @@ static void mcux_flexio_uart_dma_rx_cb(edma_handle_t *handle, void *param, bool 
 		data->rx_xfer.data = NULL;
 		data->rx_xfer.dataSize = 0U;
 
-		LOG_ERR("ENdo fo transfer");
+		LOG_DBG("END of transfer");
 
 		// Disable IRQ
 		FLEXIO_UART_DisableInterrupts(data->cfg->base, 
@@ -226,24 +218,13 @@ static void mcux_flexio_uart_dma_rx_cb(edma_handle_t *handle, void *param, bool 
 			kFLEXIO_UART_RxDataRegFullInterruptEnable);
 
 
-	// TODO: Handle Rx timeout
-	#if 0
-	k_delayed_work_submit(&data->rx_timeout_work,
-				data->rx_timeout_chunk);
-	#endif
-
 	LOG_DBG("End of RxIdle");
-
-
 }
 
 static int mcux_flex_io_uart_tx_halt(struct mcux_flexio_uart_data *data)
 {
-	//const struct mcux_flexio_uart_config *config = data->cfg;
 	int key = irq_lock();
 	size_t tx_active = data->tx_xfer.dataSize;
-
-	//struct dma_status st;
 
 	struct uart_event evt = {
 		.type = UART_TX_ABORTED,
@@ -256,7 +237,6 @@ static int mcux_flex_io_uart_tx_halt(struct mcux_flexio_uart_data *data)
 	data->tx_xfer.data = NULL;
 	data->tx_xfer.dataSize = 0U;
 
-	//dma_stop(data->dma, cfg->tx_dma_channel);
 	FLEXIO_UART_EnableTxDMA(data->cfg->base, false);
 
     /* Stop transfer. */
@@ -312,20 +292,6 @@ static void mcux_flex_io_uart_rx_timeout(struct k_work *work)
 		
 	LOG_DBG("Rx Timeout occured (received = %d)", pending_length);
 
-	/* Ignore it if the transfer has completed (nothing
-	 * pending) that means the DMA ISR is already pending, so just let
-	 * it handle things instead when we re-enable IRQs.
-	 */
-	#if 0
-	if( pending_length == 0U)
-	{
-		LOG_WRN("pending lenght is zero!");
-		k_delayed_work_submit(&data->rx_timeout_work,
-				      data->rx_timeout_chunk);
-		irq_unlock(key);
-		return;
-	}
-	#endif
 
 	// If received count is equal to buffer size, then the DMA ISR is pending. 
 	// Let it porcess the work for us!
@@ -448,8 +414,6 @@ static int mcux_flexio_uart_tx(struct device *dev, const u8_t *buf, size_t len,
 	EDMA_StartTransfer(&data->tx_dma_handle);
 	FLEXIO_UART_EnableTxDMA(config->base, true);
 
-
-
 err:
 	irq_unlock(key);
 	return retval;
@@ -496,8 +460,6 @@ static int mcux_flexio_uart_rx_enable(struct device *dev, u8_t *buf, size_t len,
 	// purge the last char received
 	u8_t dummy;
 	mcux_flexio_uart_poll_in(dev, &dummy);
-
-	
 
 	// We will use the first ISR to trigger the Rx timeout timer
 	data->rx_waiting_for_irq = true;
@@ -669,7 +631,7 @@ static void mcux_flexio_uart_poll_out(struct device *dev, unsigned char c)
 		& kFLEXIO_UART_TxDataRegEmptyFlag)) {
 	}
 
-	////LOG_DBG("Writing 0x%02X to %p", c, config->base->flexioBase);
+	LOG_DBG("Writing 0x%02X to %p", c, config->base->flexioBase);
 
 	FLEXIO_UART_WriteByte(config->base, &c);
 }
@@ -902,7 +864,6 @@ static void mcux_flexio_uart_isr(void *arg)
 		}
 
 		LOG_DBG("ISR: END");
-		
 	}
 
 #endif
