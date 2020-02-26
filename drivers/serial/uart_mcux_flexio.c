@@ -19,7 +19,7 @@
 
 
 #include <logging/log.h>
-LOG_MODULE_REGISTER(uart_mcux_flexio, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(uart_mcux_flexio, LOG_LEVEL_INF);
 
 struct mcux_flexio_uart_config {
 	FLEXIO_UART_Type *base;
