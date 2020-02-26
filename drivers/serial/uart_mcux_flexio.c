@@ -19,7 +19,7 @@
 
 
 #include <logging/log.h>
-LOG_MODULE_REGISTER(uart_mcux_flexio, LOG_LEVEL_INF);
+LOG_MODULE_REGISTER(uart_mcux_flexio, LOG_LEVEL_DBG);
 
 struct mcux_flexio_uart_config {
 	FLEXIO_UART_Type *base;
@@ -83,6 +83,20 @@ const flexio_uart_transfer_t NULL_XFER = {NULL, 0};
 
 #ifdef CONFIG_UART_ASYNC_API
 
+static void debug_dma()
+{
+	LOG_DBG("Channel 0 status : 0x%x", 
+	EDMA_GetChannelStatusFlags(DMA0, 0));
+	LOG_DBG("Channel 1 status : 0x%x", 
+	EDMA_GetChannelStatusFlags(DMA0, 1));
+	LOG_DBG("Channel 2 status : 0x%x", 
+	EDMA_GetChannelStatusFlags(DMA0, 2));
+	LOG_DBG("Channel 3 status : 0x%x", 
+	EDMA_GetChannelStatusFlags(DMA0, 3));
+	LOG_DBG("DMA0.ERR = 0x%08x", DMA0->ERR);
+	LOG_DBG("DMA0.ES = 0x%08x", DMA0->ES);
+}
+
 static bool  mcux_flexio_uartnotify_rx_processed(struct mcux_flexio_uart_data *dev_data,
 					  size_t processed)
 {
@@ -126,7 +140,7 @@ static void mcux_flexio_uart_dma_tx_cb(edma_handle_t *handle, void *param, bool 
 		FLEXIO_UART_EnableTxDMA(data->cfg->base, false);
 
 		/* Stop transfer. */
-		EDMA_StopTransfer(&data->tx_dma_handle);
+		EDMA_AbortTransfer(&data->tx_dma_handle);
 
 		// Cancel the timeout
 		k_delayed_work_cancel(&data->tx_timeout_work);
@@ -181,13 +195,15 @@ static void mcux_flexio_uart_dma_rx_cb(edma_handle_t *handle, void *param, bool 
 		data->rx_xfer.data = NULL;
 		data->rx_xfer.dataSize = 0U;
 
-		LOG_DBG("END of transfer");
-
+		// Stop DMA
+		FLEXIO_UART_EnableRxDMA(data->cfg->base, false);
+		EDMA_AbortTransfer(&data->rx_dma_handle);
 		// Disable IRQ
 		FLEXIO_UART_DisableInterrupts(data->cfg->base, 
-				kFLEXIO_UART_RxDataRegFullInterruptEnable);
-		FLEXIO_UART_EnableRxDMA(data->cfg->base, false);
-		EDMA_StopTransfer(&data->rx_dma_handle);
+			kFLEXIO_UART_RxDataRegFullInterruptEnable);
+
+		// Canceld timeout
+		k_delayed_work_cancel(&data->rx_timeout_work);
 
 
 		if (data->async_cb) {
@@ -243,7 +259,7 @@ static int mcux_flex_io_uart_tx_halt(struct mcux_flexio_uart_data *data)
 	FLEXIO_UART_EnableTxDMA(data->cfg->base, false);
 
     /* Stop transfer. */
-    EDMA_StopTransfer(&data->tx_dma_handle);
+    EDMA_AbortTransfer(&data->tx_dma_handle);
 
 	irq_unlock(key);
 
@@ -469,6 +485,10 @@ static int mcux_flexio_uart_rx_enable(struct device *dev, u8_t *buf, size_t len,
 	// We will use the first ISR to trigger the Rx timeout timer
 	data->rx_waiting_for_irq = true;
 	data->rx_irq_req_buf = true;
+
+	// Clear status and interrupt flags
+	FLEXIO_UART_ClearStatusFlags(data->cfg->base,
+			kFLEXIO_UART_RxDataRegFullInterruptEnable);
 	FLEXIO_UART_EnableInterrupts(config->base, 
 		kFLEXIO_UART_RxDataRegFullInterruptEnable);
 
@@ -487,7 +507,6 @@ static int mcux_flexio_uart_rx_enable(struct device *dev, u8_t *buf, size_t len,
 	EDMA_StartTransfer(&data->rx_dma_handle);
 	FLEXIO_UART_EnableRxDMA(config->base, true);
 
-	//irq_unlock(key);
 	return 0;
 }
 
@@ -536,7 +555,7 @@ static int mcux_flexio_uart_rx_disable(struct device *dev)
 
 	// Stop DMA
 	FLEXIO_UART_EnableRxDMA(config->base, false);
-    EDMA_StopTransfer(&data->rx_dma_handle);
+    EDMA_AbortTransfer(&data->rx_dma_handle);
 
 	// Disable IRQ
 	FLEXIO_UART_DisableInterrupts(data->cfg->base, 
@@ -598,7 +617,7 @@ static void mcux_flexio_dma_tx_isr(void *arg)
 	struct device *dev = arg;
 	struct mcux_flexio_uart_data *data = dev->driver_data;
 
-	LOG_DBG("channel: %d", data->rx_dma_handle.channel);
+	LOG_DBG("DMA Tx ISR: channel: %d", data->rx_dma_handle.channel);
 
 
 	EDMA_HandleIRQ(&data->tx_dma_handle);
@@ -610,7 +629,7 @@ static void mcux_flexio_dma_rx_isr(void *arg)
 	struct device *dev = arg;
 	struct mcux_flexio_uart_data *data = dev->driver_data;
 
-	LOG_DBG("channel: %d", data->rx_dma_handle.channel);
+	LOG_DBG("DMA Rx ISR:channel: %d", data->rx_dma_handle.channel);
 
 	EDMA_HandleIRQ(&data->rx_dma_handle);
 }
@@ -818,10 +837,13 @@ static void mcux_flexio_uart_isr(void *arg)
 	if (data->rx_xfer.dataSize && 
 		data->rx_waiting_for_irq) 
 	{
-		//LOG_DBG("FlexIO RX ISR");
+		LOG_DBG("FlexIO RX ISR");
 		data->rx_waiting_for_irq = false;
 		// Disable Rx IRQ, the reset will be handled by the timeout & DMA IRQ
 		FLEXIO_UART_DisableInterrupts(data->cfg->base,
+			kFLEXIO_UART_RxDataRegFullInterruptEnable);
+
+		FLEXIO_UART_ClearStatusFlags(data->cfg->base,
 			kFLEXIO_UART_RxDataRegFullInterruptEnable);
 
 		if (data->rx_irq_req_buf) 
@@ -840,7 +862,7 @@ static void mcux_flexio_uart_isr(void *arg)
 
 			if (data->rx_next_xfer.dataSize != 0U )
 			{
-				LOG_DBG("ISR: Loading DMA");
+					LOG_DBG("ISR: Loading DMA");
 				edma_transfer_config_t xferConfig;
 				EDMA_PrepareTransfer(&xferConfig, 
 										(void *)FLEXIO_UART_GetRxDataRegisterAddress(data->cfg->base),
@@ -856,8 +878,13 @@ static void mcux_flexio_uart_isr(void *arg)
 				{
 					LOG_ERR("Failed EDMA_SubmitTransfer()=%d", s);
 				}
-				//EDMA_StartTransfer(&data->rx_dma_handle);
 				
+				// temporary diagnositc
+				if( DMA0->ES != 0UL || DMA0->ERR != 0uL)
+				{
+					LOG_ERR("DMA in error state!");
+					debug_dma();
+				}
 			}
 		}
 
