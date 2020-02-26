@@ -186,6 +186,9 @@ static void mcux_flexio_uart_dma_rx_cb(edma_handle_t *handle, void *param, bool 
 		// Disable IRQ
 		FLEXIO_UART_DisableInterrupts(data->cfg->base, 
 				kFLEXIO_UART_RxDataRegFullInterruptEnable);
+		FLEXIO_UART_EnableRxDMA(data->cfg->base, false);
+		EDMA_StopTransfer(&data->rx_dma_handle);
+
 
 		if (data->async_cb) {
 			struct uart_event evt = {
@@ -290,7 +293,7 @@ static void mcux_flex_io_uart_rx_timeout(struct k_work *work)
 										data->rx_dma_handle.channel);
 
 		
-	LOG_DBG("Rx Timeout occured (received = %d)", pending_length);
+	//LOG_DBG("Rx Timeout occured (received = %d)", pending_length);
 
 
 	// If received count is equal to buffer size, then the DMA ISR is pending. 
@@ -352,7 +355,7 @@ static void mcux_flex_io_uart_rx_timeout(struct k_work *work)
 				      data->rx_timeout_chunk);
 
 		k_delayed_work_submit(&data->rx_timeout_work, remaining);
-		LOG_DBG("Re-arming timeout, (remaining=%d)", data->rx_timeout_time - elapsed);
+		//LOG_DBG("Re-arming timeout, (remaining=%d)", data->rx_timeout_time - elapsed);
 	}
 
 	irq_unlock(key);
@@ -461,6 +464,8 @@ static int mcux_flexio_uart_rx_enable(struct device *dev, u8_t *buf, size_t len,
 	u8_t dummy;
 	mcux_flexio_uart_poll_in(dev, &dummy);
 
+	irq_unlock(key);
+
 	// We will use the first ISR to trigger the Rx timeout timer
 	data->rx_waiting_for_irq = true;
 	data->rx_irq_req_buf = true;
@@ -482,7 +487,7 @@ static int mcux_flexio_uart_rx_enable(struct device *dev, u8_t *buf, size_t len,
 	EDMA_StartTransfer(&data->rx_dma_handle);
 	FLEXIO_UART_EnableRxDMA(config->base, true);
 
-	irq_unlock(key);
+	//irq_unlock(key);
 	return 0;
 }
 
@@ -592,6 +597,9 @@ static void mcux_flexio_dma_tx_isr(void *arg)
 {
 	struct device *dev = arg;
 	struct mcux_flexio_uart_data *data = dev->driver_data;
+
+	LOG_DBG("channel: %d", data->rx_dma_handle.channel);
+
 
 	EDMA_HandleIRQ(&data->tx_dma_handle);
 
@@ -1057,6 +1065,14 @@ static int mcux_flexio_uart_init(struct device *dev)
 	EDMA_SetCallback(&data->rx_dma_handle, mcux_flexio_uart_dma_rx_cb, data);
 
 	EDMA_InstallTCDMemory(&data->rx_dma_handle, data->tcd_pool, TCD_QUEUE_SIZE);
+
+	uint32_t dma_error_flags = EDMA_GetErrorStatusFlags(DMA0);
+	if(dma_error_flags)
+	{
+		LOG_ERR("DMA configuration error: 0x%08x", dma_error_flags);
+		return -EIO;
+	}
+
 
 	// Attache the IRQ to the ISR
 	config->irq_config_func(dev);
