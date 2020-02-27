@@ -11,7 +11,7 @@
 #include <drivers/clock_control.h>
 #include <fsl_flexio_uart.h>
 #ifdef CONFIG_UART_ASYNC_API
-//#include <fsl_flexio_uart_edma.h>
+// #include <fsl_flexio_uart_edma.h>
 #include <fsl_dmamux.h>
 #include <fsl_edma.h>
 #endif
@@ -49,10 +49,10 @@ struct mcux_flexio_uart_data {
 #endif
 #ifdef CONFIG_UART_ASYNC_API
 	// Common
-	const struct mcux_flexio_uart_config* cfg;
+	const struct mcux_flexio_uart_config *cfg;
 
 	uart_callback_t async_cb;
-	void*           async_cb_data;
+	void *async_cb_data;
 
 	// Tx
 	edma_handle_t tx_dma_handle;
@@ -79,26 +79,26 @@ struct mcux_flexio_uart_data {
 #endif
 };
 
-const flexio_uart_transfer_t NULL_XFER = {NULL, 0};
+const flexio_uart_transfer_t NULL_XFER = { NULL, 0 };
 
 #ifdef CONFIG_UART_ASYNC_API
 
 static void debug_dma()
 {
-	LOG_DBG("Channel 0 status : 0x%x", 
-	EDMA_GetChannelStatusFlags(DMA0, 0));
-	LOG_DBG("Channel 1 status : 0x%x", 
-	EDMA_GetChannelStatusFlags(DMA0, 1));
-	LOG_DBG("Channel 2 status : 0x%x", 
-	EDMA_GetChannelStatusFlags(DMA0, 2));
-	LOG_DBG("Channel 3 status : 0x%x", 
-	EDMA_GetChannelStatusFlags(DMA0, 3));
+	LOG_DBG("Channel 0 status : 0x%x",
+		EDMA_GetChannelStatusFlags(DMA0, 0));
+	LOG_DBG("Channel 1 status : 0x%x",
+		EDMA_GetChannelStatusFlags(DMA0, 1));
+	LOG_DBG("Channel 2 status : 0x%x",
+		EDMA_GetChannelStatusFlags(DMA0, 2));
+	LOG_DBG("Channel 3 status : 0x%x",
+		EDMA_GetChannelStatusFlags(DMA0, 3));
 	LOG_DBG("DMA0.ERR = 0x%08x", DMA0->ERR);
 	LOG_DBG("DMA0.ES = 0x%08x", DMA0->ES);
 }
 
 static bool  mcux_flexio_uartnotify_rx_processed(struct mcux_flexio_uart_data *dev_data,
-					  size_t processed)
+						 size_t processed)
 {
 
 
@@ -129,14 +129,13 @@ static bool  mcux_flexio_uartnotify_rx_processed(struct mcux_flexio_uart_data *d
 
 static void mcux_flexio_uart_dma_tx_cb(edma_handle_t *handle, void *param, bool transferDone, uint32_t tcds)
 {
-	struct mcux_flexio_uart_data* data = (struct mcux_flexio_uart_data*)param;
+	struct mcux_flexio_uart_data *data = (struct mcux_flexio_uart_data *)param;
 
 
-	if (transferDone)
-    {
+	if (transferDone) {
 		LOG_DBG("DMA call-back: TxIdle");
 
-		    /* Disable UART TX EDMA. */
+		/* Disable UART TX EDMA. */
 		FLEXIO_UART_EnableTxDMA(data->cfg->base, false);
 
 		/* Stop transfer. */
@@ -162,20 +161,18 @@ static void mcux_flexio_uart_dma_tx_cb(edma_handle_t *handle, void *param, bool 
 		if (evt.data.tx.len != 0U && data->async_cb) {
 			data->async_cb(&evt, data->async_cb_data);
 		}
-    }
-	else
-	{
+	}   else {
 		LOG_ERR("Tx tranfers error");
 	}
 }
 
 static void mcux_flexio_uart_dma_rx_cb(edma_handle_t *handle, void *param, bool transferDone, uint32_t tcds)
 {
-	struct mcux_flexio_uart_data* data = (struct mcux_flexio_uart_data*)param;
+	struct mcux_flexio_uart_data *data = (struct mcux_flexio_uart_data *)param;
 
 	LOG_DBG("DMA call-back: Rx done (done=%d, %d tcds)", transferDone, tcds);
 
-	// end of the buffer. If received lenght match buffer, 
+	// end of the buffer. If received lenght match buffer,
 	// Notify the application about received data
 	mcux_flexio_uartnotify_rx_processed(data, data->rx_xfer.dataSize);
 
@@ -190,7 +187,7 @@ static void mcux_flexio_uart_dma_rx_cb(edma_handle_t *handle, void *param, bool 
 		data->async_cb(&evt, data->async_cb_data);
 	}
 
-	// No next buffer, so end the transfer 
+	// No next buffer, so end the transfer
 	if (!data->rx_next_xfer.dataSize) {
 		data->rx_xfer.data = NULL;
 		data->rx_xfer.dataSize = 0U;
@@ -199,8 +196,8 @@ static void mcux_flexio_uart_dma_rx_cb(edma_handle_t *handle, void *param, bool 
 		FLEXIO_UART_EnableRxDMA(data->cfg->base, false);
 		EDMA_AbortTransfer(&data->rx_dma_handle);
 		// Disable IRQ
-		FLEXIO_UART_DisableInterrupts(data->cfg->base, 
-			kFLEXIO_UART_RxDataRegFullInterruptEnable);
+		FLEXIO_UART_DisableInterrupts(data->cfg->base,
+					      kFLEXIO_UART_RxDataRegFullInterruptEnable);
 
 		// Canceld timeout
 		k_delayed_work_cancel(&data->rx_timeout_work);
@@ -222,8 +219,7 @@ static void mcux_flexio_uart_dma_rx_cb(edma_handle_t *handle, void *param, bool 
 	data->rx_next_xfer = NULL_XFER;
 
 	/* Request next buffer*/
-	if (data->async_cb) 
-	{
+	if (data->async_cb) {
 		struct uart_event evt = {
 			.type = UART_RX_BUF_REQUEST,
 		};
@@ -234,7 +230,7 @@ static void mcux_flexio_uart_dma_rx_cb(edma_handle_t *handle, void *param, bool 
 	data->rx_waiting_for_irq = true;
 	data->rx_irq_req_buf = true;
 	FLEXIO_UART_EnableInterrupts(data->cfg->base,
-			kFLEXIO_UART_RxDataRegFullInterruptEnable);
+				     kFLEXIO_UART_RxDataRegFullInterruptEnable);
 
 
 	LOG_DBG("End of RxIdle");
@@ -258,15 +254,15 @@ static int mcux_flex_io_uart_tx_halt(struct mcux_flexio_uart_data *data)
 
 	FLEXIO_UART_EnableTxDMA(data->cfg->base, false);
 
-    /* Stop transfer. */
-    EDMA_AbortTransfer(&data->tx_dma_handle);
+	/* Stop transfer. */
+	EDMA_AbortTransfer(&data->tx_dma_handle);
 
 	irq_unlock(key);
 
-	
-	size_t sent_count = tx_active - \
-	EDMA_GetRemainingMajorLoopCount(data->tx_dma_handle.base, 
-									data->tx_dma_handle.channel);
+
+	size_t sent_count = tx_active -	\
+			    EDMA_GetRemainingMajorLoopCount(data->tx_dma_handle.base,
+							    data->tx_dma_handle.channel);
 
 	evt.data.tx.len = sent_count;
 
@@ -284,7 +280,7 @@ static int mcux_flex_io_uart_tx_halt(struct mcux_flexio_uart_data *data)
 static void mcux_flex_io_uart_tx_timeout(struct k_work *work)
 {
 	struct mcux_flexio_uart_data *data = CONTAINER_OF(work,
-							   struct mcux_flexio_uart_data, tx_timeout_work);
+							  struct mcux_flexio_uart_data, tx_timeout_work);
 
 	LOG_WRN("Tx Timeout occured!");
 	mcux_flex_io_uart_tx_halt(data);
@@ -293,29 +289,27 @@ static void mcux_flex_io_uart_tx_timeout(struct k_work *work)
 static void mcux_flex_io_uart_rx_timeout(struct k_work *work)
 {
 	struct mcux_flexio_uart_data *data = CONTAINER_OF(work,
-							struct mcux_flexio_uart_data, rx_timeout_work);
+							  struct mcux_flexio_uart_data, rx_timeout_work);
 
 	int key = irq_lock();
 
-	if (data->rx_xfer.dataSize == 0)
-	{
+	if (data->rx_xfer.dataSize == 0) {
 		LOG_DBG("Rx Timeout, but transfer ended.");
 		irq_unlock(key);
 		return;
 	}
 
-	size_t pending_length = data->rx_xfer.dataSize - 
-		EDMA_GetRemainingMajorLoopCount(data->rx_dma_handle.base, 
-										data->rx_dma_handle.channel);
-
-		
-	//LOG_DBG("Rx Timeout occured (received = %d)", pending_length);
+	size_t pending_length = data->rx_xfer.dataSize -
+				EDMA_GetRemainingMajorLoopCount(data->rx_dma_handle.base,
+								data->rx_dma_handle.channel);
 
 
-	// If received count is equal to buffer size, then the DMA ISR is pending. 
+	// LOG_DBG("Rx Timeout occured (received = %d)", pending_length);
+
+
+	// If received count is equal to buffer size, then the DMA ISR is pending.
 	// Let it porcess the work for us!
-	if( pending_length == data->rx_xfer.dataSize)
-	{
+	if (pending_length == data->rx_xfer.dataSize) {
 		LOG_DBG("Discarding Rx timout with recevied count of %d", pending_length);
 		k_delayed_work_submit(&data->rx_timeout_work,
 				      data->rx_timeout_chunk);
@@ -347,19 +341,16 @@ static void mcux_flex_io_uart_rx_timeout(struct k_work *work)
 		 * No time left, so call the handler, and let the ISR
 		 * restart the timeout when it sees data.
 		 */
-		
-		if( (pending_length - data->rx_processed_len) != 0)
-		{
+
+		if ((pending_length - data->rx_processed_len) != 0) {
 			k_delayed_work_submit(&data->rx_timeout_work,
-				      data->rx_timeout_chunk);
-		}
-		else
-		{
+					      data->rx_timeout_chunk);
+		} else {
 			LOG_DBG("Re-eanble IRQ");
 			// Re-eanble IRQ to start new Rx
 			data->rx_waiting_for_irq = true;
 			FLEXIO_UART_EnableInterrupts(data->cfg->base,
-			kFLEXIO_UART_RxDataRegFullInterruptEnable);
+						     kFLEXIO_UART_RxDataRegFullInterruptEnable);
 		}
 		LOG_DBG("Notifiying %d bytes", pending_length - data->rx_processed_len);
 		mcux_flexio_uartnotify_rx_processed(data, pending_length);
@@ -371,13 +362,13 @@ static void mcux_flex_io_uart_rx_timeout(struct k_work *work)
 				      data->rx_timeout_chunk);
 
 		k_delayed_work_submit(&data->rx_timeout_work, remaining);
-		//LOG_DBG("Re-arming timeout, (remaining=%d)", data->rx_timeout_time - elapsed);
+		// LOG_DBG("Re-arming timeout, (remaining=%d)", data->rx_timeout_time - elapsed);
 	}
 
 	irq_unlock(key);
 }
 
-static int mcux_flexio_uart_callback_set(struct device *dev, uart_callback_t callback,void *user_data)
+static int mcux_flexio_uart_callback_set(struct device *dev, uart_callback_t callback, void *user_data)
 {
 	struct mcux_flexio_uart_data *data = dev->driver_data;
 
@@ -390,8 +381,8 @@ static int mcux_flexio_uart_callback_set(struct device *dev, uart_callback_t cal
 	return 0;
 }
 
-static int mcux_flexio_uart_tx(struct device *dev, const u8_t *buf, size_t len, 
-			u32_t timeout)
+static int mcux_flexio_uart_tx(struct device *dev, const u8_t *buf, size_t len,
+			       u32_t timeout)
 {
 	struct mcux_flexio_uart_data *data = dev->driver_data;
 	const struct mcux_flexio_uart_config *config = dev->config->config_info;
@@ -406,28 +397,27 @@ static int mcux_flexio_uart_tx(struct device *dev, const u8_t *buf, size_t len,
 	}
 
 
-	data->tx_xfer.data = (u8_t*)buf;
+	data->tx_xfer.data = (u8_t *)buf;
 	data->tx_xfer.dataSize = len;
 
 	LOG_DBG("%s: Sending %d bytes from %p", dev->config->name,
-			data->tx_xfer.dataSize, data->tx_xfer.data
-	);
+		data->tx_xfer.dataSize, data->tx_xfer.data
+		);
 
-	if(timeout != K_FOREVER)
-	{
+	if (timeout != K_FOREVER) {
 		LOG_DBG("Setting timeout of %d", timeout);
 		k_delayed_work_submit(&data->tx_timeout_work, timeout);
 	}
 
 	edma_transfer_config_t xferConfig;
-	EDMA_PrepareTransfer(&xferConfig, 
-							data->tx_xfer.data, 
-							sizeof(uint8_t),
-                            (void *)FLEXIO_UART_GetTxDataRegisterAddress(config->base), 
-							sizeof(uint8_t),
-							sizeof(uint8_t),
-                            data->tx_xfer.dataSize, 
-							kEDMA_MemoryToPeripheral);
+	EDMA_PrepareTransfer(&xferConfig,
+			     data->tx_xfer.data,
+			     sizeof(uint8_t),
+			     (void *)FLEXIO_UART_GetTxDataRegisterAddress(config->base),
+			     sizeof(uint8_t),
+			     sizeof(uint8_t),
+			     data->tx_xfer.dataSize,
+			     kEDMA_MemoryToPeripheral);
 
 	EDMA_SubmitTransfer(&data->tx_dma_handle, &xferConfig);
 	EDMA_StartTransfer(&data->tx_dma_handle);
@@ -440,7 +430,7 @@ err:
 
 static int mcux_flexio_uart_tx_abort(struct device *dev)
 {
-	struct mcux_flexio_uart_data * data = dev->driver_data;
+	struct mcux_flexio_uart_data *data = dev->driver_data;
 
 	k_delayed_work_cancel(&data->tx_timeout_work);
 
@@ -449,7 +439,7 @@ static int mcux_flexio_uart_tx_abort(struct device *dev)
 
 static int mcux_flexio_uart_poll_in(struct device *dev, unsigned char *c);
 
-static int mcux_flexio_uart_rx_enable(struct device *dev, u8_t *buf, size_t len,u32_t timeout)
+static int mcux_flexio_uart_rx_enable(struct device *dev, u8_t *buf, size_t len, u32_t timeout)
 {
 	struct mcux_flexio_uart_data *data = dev->driver_data;
 	const struct mcux_flexio_uart_config *config = dev->config->config_info;
@@ -461,20 +451,20 @@ static int mcux_flexio_uart_rx_enable(struct device *dev, u8_t *buf, size_t len,
 		return -EBUSY;
 	}
 
-	
+
 	// store arguments
 	data->rx_xfer.data = buf;
 	data->rx_xfer.dataSize = len;
 	data->rx_timeout_time = timeout;
 	data->rx_timeout_chunk = MAX(timeout / 4U, 1);
 	data->rx_processed_len = 0U;
-	
+
 	data->rx_timeout_from_isr = true;
 
 
-	LOG_DBG("Setup async receive of %d bytes to %p", 
-			data->rx_xfer.dataSize, data->rx_xfer.data
-	);
+	LOG_DBG("Setup async receive of %d bytes to %p",
+		data->rx_xfer.dataSize, data->rx_xfer.data
+		);
 
 	// purge the last char received
 	u8_t dummy;
@@ -488,20 +478,20 @@ static int mcux_flexio_uart_rx_enable(struct device *dev, u8_t *buf, size_t len,
 
 	// Clear status and interrupt flags
 	FLEXIO_UART_ClearStatusFlags(data->cfg->base,
-			kFLEXIO_UART_RxDataRegFullInterruptEnable);
-	FLEXIO_UART_EnableInterrupts(config->base, 
-		kFLEXIO_UART_RxDataRegFullInterruptEnable);
+				     kFLEXIO_UART_RxDataRegFullInterruptEnable);
+	FLEXIO_UART_EnableInterrupts(config->base,
+				     kFLEXIO_UART_RxDataRegFullInterruptEnable);
 
 	// start DMA
 	edma_transfer_config_t xferConfig;
-	EDMA_PrepareTransfer(&xferConfig, 
-							(void *)FLEXIO_UART_GetRxDataRegisterAddress(config->base),
-							sizeof(uint8_t),
-							data->rx_xfer.data, 
-							sizeof(uint8_t), 
-							sizeof(uint8_t), 
-							data->rx_xfer.dataSize, 
-							kEDMA_PeripheralToMemory);
+	EDMA_PrepareTransfer(&xferConfig,
+			     (void *)FLEXIO_UART_GetRxDataRegisterAddress(config->base),
+			     sizeof(uint8_t),
+			     data->rx_xfer.data,
+			     sizeof(uint8_t),
+			     sizeof(uint8_t),
+			     data->rx_xfer.dataSize,
+			     kEDMA_PeripheralToMemory);
 
 	EDMA_SubmitTransfer(&data->rx_dma_handle, &xferConfig);
 	EDMA_StartTransfer(&data->rx_dma_handle);
@@ -529,7 +519,7 @@ static int mcux_flexio_uart_rx_buf_rsp(struct device *dev, u8_t *buf, size_t len
 	}
 
 	data->rx_next_xfer.data = buf;
-	data->rx_next_xfer.dataSize= len;
+	data->rx_next_xfer.dataSize = len;
 
 err:
 	irq_unlock(key);
@@ -537,7 +527,7 @@ err:
 }
 
 static int mcux_flexio_uart_rx_disable(struct device *dev)
-{	
+{
 	struct mcux_flexio_uart_data *data = dev->driver_data;
 	const struct mcux_flexio_uart_config *config = dev->config->config_info;
 	int retval;
@@ -555,11 +545,11 @@ static int mcux_flexio_uart_rx_disable(struct device *dev)
 
 	// Stop DMA
 	FLEXIO_UART_EnableRxDMA(config->base, false);
-    EDMA_AbortTransfer(&data->rx_dma_handle);
+	EDMA_AbortTransfer(&data->rx_dma_handle);
 
 	// Disable IRQ
-	FLEXIO_UART_DisableInterrupts(data->cfg->base, 
-		kFLEXIO_UART_RxDataRegFullInterruptEnable);
+	FLEXIO_UART_DisableInterrupts(data->cfg->base,
+				      kFLEXIO_UART_RxDataRegFullInterruptEnable);
 
 	// If chaind buffer is used, notify for release
 	if (data->rx_next_xfer.dataSize) {
@@ -579,9 +569,9 @@ static int mcux_flexio_uart_rx_disable(struct device *dev)
 	}
 
 	// Notify for the data already received!
-	size_t pending_length = data->rx_xfer.dataSize - 
-	EDMA_GetRemainingMajorLoopCount(data->rx_dma_handle.base, 
-									data->rx_dma_handle.channel);
+	size_t pending_length = data->rx_xfer.dataSize -
+				EDMA_GetRemainingMajorLoopCount(data->rx_dma_handle.base,
+								data->rx_dma_handle.channel);
 
 	mcux_flexio_uartnotify_rx_processed(data, pending_length);
 
@@ -655,7 +645,7 @@ static void mcux_flexio_uart_poll_out(struct device *dev, unsigned char c)
 	const struct mcux_flexio_uart_config *config = dev->config->config_info;
 
 	while (!(FLEXIO_UART_GetStatusFlags(config->base)
-		& kFLEXIO_UART_TxDataRegEmptyFlag)) {
+		 & kFLEXIO_UART_TxDataRegEmptyFlag)) {
 	}
 
 	LOG_DBG("Writing 0x%02X to %p", c, config->base->flexioBase);
@@ -680,7 +670,7 @@ static int mcux_flexio_uart_err_check(struct device *dev)
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 static int mcux_flexio_uart_fifo_fill(struct device *dev, const u8_t *tx_data,
-			       int len)
+				      int len)
 {
 	const struct mcux_flexio_uart_config *config = dev->config->config_info;
 	u8_t num_tx = 0U;
@@ -696,7 +686,7 @@ static int mcux_flexio_uart_fifo_fill(struct device *dev, const u8_t *tx_data,
 }
 
 static int mcux_flexio_uart_fifo_read(struct device *dev, u8_t *rx_data,
-			       const int len)
+				      const int len)
 {
 	const struct mcux_flexio_uart_config *config = dev->config->config_info;
 	u8_t num_rx = 0U;
@@ -741,7 +731,7 @@ static int mcux_flexio_uart_irq_tx_ready(struct device *dev)
 	u32_t mask = kFLEXIO_UART_TxDataRegEmptyInterruptEnable;
 
 	return (config->base->flexioBase->SHIFTEIEN & mask)
-		&& mcux_flexio_uart_irq_tx_complete(dev);
+	       && mcux_flexio_uart_irq_tx_complete(dev);
 }
 
 static void mcux_flexio_uart_irq_rx_enable(struct device *dev)
@@ -774,7 +764,7 @@ static int mcux_flexio_uart_irq_rx_ready(struct device *dev)
 	u32_t mask = kFLEXIO_UART_RxDataRegFullInterruptEnable;
 
 	return (config->base->flexioBase->SHIFTEIEN & mask)
-		&& mcux_flexio_uart_irq_rx_full(dev);
+	       && mcux_flexio_uart_irq_rx_full(dev);
 }
 
 static void mcux_flexio_uart_irq_err_enable(struct device *dev)
@@ -805,8 +795,8 @@ static int mcux_flexio_uart_irq_update(struct device *dev)
 }
 
 static void mcux_flexio_uart_irq_callback_set(struct device *dev,
-				       uart_irq_callback_user_data_t cb,
-				       void *cb_data)
+					      uart_irq_callback_user_data_t cb,
+					      void *cb_data)
 {
 	struct mcux_flexio_uart_data *data = dev->driver_data;
 
@@ -833,21 +823,19 @@ static void mcux_flexio_uart_isr(void *arg)
 #endif
 
 #if CONFIG_UART_ASYNC_API
-	
-	if (data->rx_xfer.dataSize && 
-		data->rx_waiting_for_irq) 
-	{
+
+	if (data->rx_xfer.dataSize &&
+	    data->rx_waiting_for_irq) {
 		LOG_DBG("FlexIO RX ISR");
 		data->rx_waiting_for_irq = false;
 		// Disable Rx IRQ, the reset will be handled by the timeout & DMA IRQ
 		FLEXIO_UART_DisableInterrupts(data->cfg->base,
-			kFLEXIO_UART_RxDataRegFullInterruptEnable);
+					      kFLEXIO_UART_RxDataRegFullInterruptEnable);
 
 		FLEXIO_UART_ClearStatusFlags(data->cfg->base,
-			kFLEXIO_UART_RxDataRegFullInterruptEnable);
+					     kFLEXIO_UART_RxDataRegFullInterruptEnable);
 
-		if (data->rx_irq_req_buf) 
-		{
+		if (data->rx_irq_req_buf) {
 			data->rx_irq_req_buf = false;
 			/* Receive started, so request the next buffer */
 			if (data->rx_next_xfer.dataSize == 0U && data->async_cb) {
@@ -860,28 +848,25 @@ static void mcux_flexio_uart_isr(void *arg)
 
 			}
 
-			if (data->rx_next_xfer.dataSize != 0U )
-			{
-					LOG_DBG("ISR: Loading DMA");
+			if (data->rx_next_xfer.dataSize != 0U) {
+				LOG_DBG("ISR: Loading DMA");
 				edma_transfer_config_t xferConfig;
-				EDMA_PrepareTransfer(&xferConfig, 
-										(void *)FLEXIO_UART_GetRxDataRegisterAddress(data->cfg->base),
-										sizeof(uint8_t),
-										data->rx_next_xfer.data, 
-										sizeof(uint8_t), 
-										sizeof(uint8_t), 
-										data->rx_next_xfer.dataSize, 
-										kEDMA_PeripheralToMemory);
+				EDMA_PrepareTransfer(&xferConfig,
+						     (void *)FLEXIO_UART_GetRxDataRegisterAddress(data->cfg->base),
+						     sizeof(uint8_t),
+						     data->rx_next_xfer.data,
+						     sizeof(uint8_t),
+						     sizeof(uint8_t),
+						     data->rx_next_xfer.dataSize,
+						     kEDMA_PeripheralToMemory);
 
 				status_t s = EDMA_SubmitTransfer(&data->rx_dma_handle, &xferConfig);
-				if( s!= kStatus_Success)
-				{
+				if (s != kStatus_Success) {
 					LOG_ERR("Failed EDMA_SubmitTransfer()=%d", s);
 				}
-				
+
 				// temporary diagnositc
-				if( DMA0->ES != 0UL || DMA0->ERR != 0uL)
-				{
+				if (DMA0->ES != 0UL || DMA0->ERR != 0uL) {
 					LOG_ERR("DMA in error state!");
 					debug_dma();
 				}
@@ -889,13 +874,12 @@ static void mcux_flexio_uart_isr(void *arg)
 		}
 
 		// If work is already submitted, this will reset the timer
-		if (data->rx_timeout_time != K_FOREVER) 
-		{
+		if (data->rx_timeout_time != K_FOREVER) {
 			LOG_DBG("ISR: Starint timeout");
 			data->rx_timeout_from_isr = true;
 			data->rx_timeout_start = k_uptime_get_32();
 			k_delayed_work_submit(&data->rx_timeout_work,
-						data->rx_timeout_chunk);
+					      data->rx_timeout_chunk);
 		}
 
 		LOG_DBG("ISR: END");
@@ -927,58 +911,54 @@ static int mcux_flexio_uart_init(struct device *dev)
 		return -EINVAL;
 	}
 	LOG_INF("Initalizing FlexIO-UART \"%s\"", dev->config->name);
-	LOG_DBG("Clock freq: %d MHz", clock_freq/1000000);
+	LOG_DBG("Clock freq: %d MHz", clock_freq / 1000000);
 	LOG_INF("target baudrade: %d", config->baud_rate);
 	LOG_DBG("TX pin: %d", config->base->TxPinIndex);
 	LOG_DBG("RX pin: %d", config->base->RxPinIndex);
 	LOG_DBG("FlexIO: %p", config->base->flexioBase);
 
-	if(clock_freq == 0)
-	{
+	if (clock_freq == 0) {
 		return -EINVAL;
 	}
 
-    FLEXIO_UART_GetDefaultConfig(&uart_config);
-    uart_config.baudRate_Bps = config->baud_rate;
-    uart_config.enableUart   = true;
+	FLEXIO_UART_GetDefaultConfig(&uart_config);
+	uart_config.baudRate_Bps = config->baud_rate;
+	uart_config.enableUart = true;
 
-    if( FLEXIO_UART_Init(config->base, &uart_config, clock_freq) != kStatus_Success)
-	{
+	if (FLEXIO_UART_Init(config->base, &uart_config, clock_freq) != kStatus_Success) {
 		printk("Failed to set baudrate!");
 		return -EINVAL;
 	}
 
 	// Monkey patch the Tx timer for TX clk if used
-	if( config->tx_clk_pin_index != 0xFF)
-	{
+	if (config->tx_clk_pin_index != 0xFF) {
 		LOG_INF("Using sychronous TX mode (TxClkpin: %d!)", config->tx_clk_pin_index);
 
-	    /*2. Configure the timer 0 for tx. */
+		/*2. Configure the timer 0 for tx. */
 		flexio_timer_config_t timerConfig;
 		uint16_t timerDiv = 0;
 		uint16_t timerCmp = 0;
-		timerConfig.triggerSelect   = FLEXIO_TIMER_TRIGGER_SEL_SHIFTnSTAT(config->base->shifterIndex[0]);
+		timerConfig.triggerSelect = FLEXIO_TIMER_TRIGGER_SEL_SHIFTnSTAT(config->base->shifterIndex[0]);
 		timerConfig.triggerPolarity = kFLEXIO_TimerTriggerPolarityActiveLow;
-		timerConfig.triggerSource   = kFLEXIO_TimerTriggerSourceInternal;
-		timerConfig.pinConfig       = kFLEXIO_PinConfigOutputDisabled;
-		timerConfig.pinSelect       = config->tx_clk_pin_index;//config->base->TxPinIndex;
-		timerConfig.pinPolarity     = kFLEXIO_PinActiveLow;
-		timerConfig.timerMode       = kFLEXIO_TimerModeDual8BitBaudBit;
-		timerConfig.timerOutput     = kFLEXIO_TimerOutputOneNotAffectedByReset;
-		timerConfig.timerDecrement  = kFLEXIO_TimerDecSrcOnFlexIOClockShiftTimerOutput;
-		timerConfig.timerReset      = kFLEXIO_TimerResetNever;
-		timerConfig.timerDisable    = kFLEXIO_TimerDisableOnTimerCompare;
-		timerConfig.timerEnable     = kFLEXIO_TimerEnableOnPinRisingEdgeTriggerHigh;//kFLEXIO_TimerEnableOnTriggerHigh;
-		timerConfig.timerStop       = kFLEXIO_TimerStopBitEnableOnTimerDisable;
-		timerConfig.timerStart      = kFLEXIO_TimerStartBitEnabled;
+		timerConfig.triggerSource = kFLEXIO_TimerTriggerSourceInternal;
+		timerConfig.pinConfig = kFLEXIO_PinConfigOutputDisabled;
+		timerConfig.pinSelect = config->tx_clk_pin_index;      // config->base->TxPinIndex;
+		timerConfig.pinPolarity = kFLEXIO_PinActiveLow;
+		timerConfig.timerMode = kFLEXIO_TimerModeDual8BitBaudBit;
+		timerConfig.timerOutput = kFLEXIO_TimerOutputOneNotAffectedByReset;
+		timerConfig.timerDecrement = kFLEXIO_TimerDecSrcOnFlexIOClockShiftTimerOutput;
+		timerConfig.timerReset = kFLEXIO_TimerResetNever;
+		timerConfig.timerDisable = kFLEXIO_TimerDisableOnTimerCompare;
+		timerConfig.timerEnable = kFLEXIO_TimerEnableOnPinRisingEdgeTriggerHigh;    // kFLEXIO_TimerEnableOnTriggerHigh;
+		timerConfig.timerStop = kFLEXIO_TimerStopBitEnableOnTimerDisable;
+		timerConfig.timerStart = kFLEXIO_TimerStartBitEnabled;
 
 		timerDiv = clock_freq / config->baud_rate;
 		timerDiv = timerDiv / 2 - 1;
 
 		LOG_DBG("timer div = %d", timerDiv);
 
-		if (timerDiv > 0xFFU)
-		{
+		if (timerDiv > 0xFFU) {
 			LOG_ERR("Failed to set timer!");
 		}
 
@@ -989,30 +969,29 @@ static int mcux_flexio_uart_init(struct device *dev)
 
 		FLEXIO_SetTimerConfig(config->base->flexioBase, config->base->timerIndex[0], &timerConfig);
 
-	    /*Extra: Configurate a spare timer to generate the clock signal */
+		/*Extra: Configurate a spare timer to generate the clock signal */
 
-		timerConfig.triggerSelect   = FLEXIO_TIMER_TRIGGER_SEL_SHIFTnSTAT(config->base->shifterIndex[0]);
+		timerConfig.triggerSelect = FLEXIO_TIMER_TRIGGER_SEL_SHIFTnSTAT(config->base->shifterIndex[0]);
 		timerConfig.triggerPolarity = kFLEXIO_TimerTriggerPolarityActiveLow;
-		timerConfig.triggerSource   = kFLEXIO_TimerTriggerSourceInternal;
-		timerConfig.pinConfig       = kFLEXIO_PinConfigOutput;
-		timerConfig.pinSelect       = config->tx_clk_pin_index;
-		timerConfig.pinPolarity     = kFLEXIO_PinActiveHigh;
-		timerConfig.timerMode       = kFLEXIO_TimerModeDual8BitBaudBit;
-		timerConfig.timerOutput     = kFLEXIO_TimerOutputOneNotAffectedByReset;
-		timerConfig.timerDecrement  = kFLEXIO_TimerDecSrcOnFlexIOClockShiftTimerOutput;
-		timerConfig.timerReset      = kFLEXIO_TimerResetNever;
-		timerConfig.timerDisable    = kFLEXIO_TimerDisableNever; //kFLEXIO_TimerDisableOnTimerCompare;
-		timerConfig.timerEnable     = kFLEXIO_TimerEnabledAlways;//kFLEXIO_TimerEnableOnTriggerHigh;
-		timerConfig.timerStop       = kFLEXIO_TimerStopBitDisabled;// kFLEXIO_TimerStopBitEnableOnTimerDisable;
-		timerConfig.timerStart      = kFLEXIO_TimerStartBitDisabled; // kFLEXIO_TimerStartBitEnabled
+		timerConfig.triggerSource = kFLEXIO_TimerTriggerSourceInternal;
+		timerConfig.pinConfig = kFLEXIO_PinConfigOutput;
+		timerConfig.pinSelect = config->tx_clk_pin_index;
+		timerConfig.pinPolarity = kFLEXIO_PinActiveHigh;
+		timerConfig.timerMode = kFLEXIO_TimerModeDual8BitBaudBit;
+		timerConfig.timerOutput = kFLEXIO_TimerOutputOneNotAffectedByReset;
+		timerConfig.timerDecrement = kFLEXIO_TimerDecSrcOnFlexIOClockShiftTimerOutput;
+		timerConfig.timerReset = kFLEXIO_TimerResetNever;
+		timerConfig.timerDisable = kFLEXIO_TimerDisableNever;           // kFLEXIO_TimerDisableOnTimerCompare;
+		timerConfig.timerEnable = kFLEXIO_TimerEnabledAlways;           // kFLEXIO_TimerEnableOnTriggerHigh;
+		timerConfig.timerStop = kFLEXIO_TimerStopBitDisabled;           // kFLEXIO_TimerStopBitEnableOnTimerDisable;
+		timerConfig.timerStart = kFLEXIO_TimerStartBitDisabled;         // kFLEXIO_TimerStartBitEnabled
 
 
 
 		timerDiv = clock_freq / config->baud_rate;
 		timerDiv = timerDiv / 2 - 1;
 
-		if (timerDiv > 0xFFU)
-		{
+		if (timerDiv > 0xFFU) {
 			LOG_ERR("Failed to set timer!");
 		}
 
@@ -1021,31 +1000,30 @@ static int mcux_flexio_uart_init(struct device *dev)
 
 		timerConfig.timerCompare = timerCmp;
 
-    	FLEXIO_SetTimerConfig(config->base->flexioBase, 2, &timerConfig);
+		FLEXIO_SetTimerConfig(config->base->flexioBase, 2, &timerConfig);
 
 	}
-	
-	if( config->rx_clk_pin_index != 0xFF )
-	{
+
+	if (config->rx_clk_pin_index != 0xFF) {
 
 		LOG_INF("Using sychronous RX mode (RxClkpin: %d!)", config->rx_clk_pin_index);
 
 		/* 4. Configure the Rx timer for Sychronous RX */
 		flexio_timer_config_t timerConfig;
-		timerConfig.triggerSelect   = FLEXIO_TIMER_TRIGGER_SEL_PININPUT(config->base->RxPinIndex);
+		timerConfig.triggerSelect = FLEXIO_TIMER_TRIGGER_SEL_PININPUT(config->base->RxPinIndex);
 		timerConfig.triggerPolarity = kFLEXIO_TimerTriggerPolarityActiveLow;
-		timerConfig.triggerSource   = kFLEXIO_TimerTriggerSourceInternal;
-		timerConfig.pinConfig       = kFLEXIO_PinConfigOutputDisabled;
-		timerConfig.pinSelect       = config->rx_clk_pin_index;
-		timerConfig.pinPolarity     = kFLEXIO_PinActiveHigh;
-		timerConfig.timerMode       = kFLEXIO_TimerModeSingle16Bit;
-		timerConfig.timerOutput     = kFLEXIO_TimerOutputZeroNotAffectedByReset;
-		timerConfig.timerDecrement  = kFLEXIO_TimerDecSrcOnPinInputShiftPinInput;
-		timerConfig.timerReset      = kFLEXIO_TimerResetNever;
-		timerConfig.timerDisable    = kFLEXIO_TimerDisableOnTimerCompare;
-		timerConfig.timerEnable     = kFLEXIO_TimerEnableOnTriggerRisingEdge;
-		timerConfig.timerStop       = kFLEXIO_TimerStopBitEnableOnTimerDisable;
-		timerConfig.timerStart      = kFLEXIO_TimerStartBitEnabled;
+		timerConfig.triggerSource = kFLEXIO_TimerTriggerSourceInternal;
+		timerConfig.pinConfig = kFLEXIO_PinConfigOutputDisabled;
+		timerConfig.pinSelect = config->rx_clk_pin_index;
+		timerConfig.pinPolarity = kFLEXIO_PinActiveHigh;
+		timerConfig.timerMode = kFLEXIO_TimerModeSingle16Bit;
+		timerConfig.timerOutput = kFLEXIO_TimerOutputZeroNotAffectedByReset;
+		timerConfig.timerDecrement = kFLEXIO_TimerDecSrcOnPinInputShiftPinInput;
+		timerConfig.timerReset = kFLEXIO_TimerResetNever;
+		timerConfig.timerDisable = kFLEXIO_TimerDisableOnTimerCompare;
+		timerConfig.timerEnable = kFLEXIO_TimerEnableOnTriggerRisingEdge;
+		timerConfig.timerStop = kFLEXIO_TimerStopBitEnableOnTimerDisable;
+		timerConfig.timerStart = kFLEXIO_TimerStartBitEnabled;
 
 		timerConfig.timerCompare = uart_config.bitCountPerChar * 2 - 1U;
 
@@ -1054,8 +1032,8 @@ static int mcux_flexio_uart_init(struct device *dev)
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 
-	FLEXIO_UART_EnableInterrupts(config->base, 
-			kFLEXIO_UART_TxDataRegEmptyInterruptEnable | kFLEXIO_UART_RxDataRegFullInterruptEnable );
+	FLEXIO_UART_EnableInterrupts(config->base,
+				     kFLEXIO_UART_TxDataRegEmptyInterruptEnable | kFLEXIO_UART_RxDataRegFullInterruptEnable);
 	config->irq_config_func(dev);
 #endif
 
@@ -1068,11 +1046,10 @@ static int mcux_flexio_uart_init(struct device *dev)
 
 	// Intialize the DMA & DMAMUX
 	edma_config_t edma_config;
-	if (!dma_initized)
-	{
+	if (!dma_initized) {
 		DMAMUX_Init(DMAMUX);
 		EDMA_GetDefaultConfig(&edma_config);
-		edma_config.enableDebugMode = true; 
+		edma_config.enableDebugMode = true;
 		EDMA_Init(DMA0, &edma_config);
 		dma_initized = true;
 	}
@@ -1080,22 +1057,21 @@ static int mcux_flexio_uart_init(struct device *dev)
 	// Tx Mux and handle
 	LOG_DBG("%s: Assign source %d to channel %d", dev->config->name, config->tx_dma_source, config->tx_dma_channel);
 	DMAMUX_SetSource(DMAMUX, config->tx_dma_channel, config->tx_dma_source);
-    DMAMUX_EnableChannel(DMAMUX, config->tx_dma_channel);
-    EDMA_CreateHandle(&data->tx_dma_handle, DMA0, config->tx_dma_channel);
+	DMAMUX_EnableChannel(DMAMUX, config->tx_dma_channel);
+	EDMA_CreateHandle(&data->tx_dma_handle, DMA0, config->tx_dma_channel);
 	EDMA_SetCallback(&data->tx_dma_handle, mcux_flexio_uart_dma_tx_cb, data);
 
 	// Rx Mux and handle
 	LOG_DBG("%s: Assign source %d to channel %d", dev->config->name, config->rx_dma_source, config->rx_dma_channel);
-    DMAMUX_SetSource(DMAMUX, config->rx_dma_channel, config->rx_dma_source);
-    DMAMUX_EnableChannel(DMAMUX, config->rx_dma_channel);
-    EDMA_CreateHandle(&data->rx_dma_handle, DMA0, config->rx_dma_channel);
+	DMAMUX_SetSource(DMAMUX, config->rx_dma_channel, config->rx_dma_source);
+	DMAMUX_EnableChannel(DMAMUX, config->rx_dma_channel);
+	EDMA_CreateHandle(&data->rx_dma_handle, DMA0, config->rx_dma_channel);
 	EDMA_SetCallback(&data->rx_dma_handle, mcux_flexio_uart_dma_rx_cb, data);
 
 	EDMA_InstallTCDMemory(&data->rx_dma_handle, data->tcd_pool, TCD_QUEUE_SIZE);
 
 	uint32_t dma_error_flags = EDMA_GetErrorStatusFlags(DMA0);
-	if(dma_error_flags)
-	{
+	if (dma_error_flags) {
 		LOG_ERR("DMA configuration error: 0x%08x", dma_error_flags);
 		return -EIO;
 	}
@@ -1150,14 +1126,14 @@ static void mcux_flexio_uart_config_func_0(struct device *dev);
 #endif
 
 static FLEXIO_UART_Type uart_0_flexio_config = {
-	
-    .flexioBase      = FLEXIO1,
-    .TxPinIndex      = DT_INST_0_NXP_IMXRT_FLEXIO_UART_TXD_SIGNAL, 
-    .RxPinIndex      = DT_INST_0_NXP_IMXRT_FLEXIO_UART_RXD_SIGNAL,
-    .shifterIndex[0] = 0U,
-    .shifterIndex[1] = 2U,
-    .timerIndex[0]   = 0U,
-    .timerIndex[1]   = 1U,
+
+	.flexioBase = FLEXIO1,
+	.TxPinIndex = DT_INST_0_NXP_IMXRT_FLEXIO_UART_TXD_SIGNAL,
+	.RxPinIndex = DT_INST_0_NXP_IMXRT_FLEXIO_UART_RXD_SIGNAL,
+	.shifterIndex[0] = 0U,
+	.shifterIndex[1] = 2U,
+	.timerIndex[0] = 0U,
+	.timerIndex[1] = 1U,
 };
 
 static const struct mcux_flexio_uart_config mcux_flexio_uart_0_config = {
@@ -1165,12 +1141,12 @@ static const struct mcux_flexio_uart_config mcux_flexio_uart_0_config = {
 #ifdef DT_INST_0_NXP_IMXRT_FLEXIO_UART_TXCLK_SIGNAL
 	.tx_clk_pin_index = DT_INST_0_NXP_IMXRT_FLEXIO_UART_TXCLK_SIGNAL,
 #else
-	.tx_clk_pin_index =	 0xFF,
+	.tx_clk_pin_index =      0xFF,
 #endif
 #ifdef DT_INST_0_NXP_IMXRT_FLEXIO_UART_RXCLK_SIGNAL
 	.rx_clk_pin_index = DT_INST_0_NXP_IMXRT_FLEXIO_UART_RXCLK_SIGNAL,
 #else
-	.rx_clk_pin_index =	 0xFF,
+	.rx_clk_pin_index =      0xFF,
 #endif
 	.clock_controller = DT_INST_0_NXP_IMXRT_FLEXIO_UART_CLOCK_CONTROLLER,
 	.clock_subsys =
@@ -1180,10 +1156,10 @@ static const struct mcux_flexio_uart_config mcux_flexio_uart_0_config = {
 	.irq_config_func = mcux_flexio_uart_config_func_0,
 #endif
 #ifdef CONFIG_UART_ASYNC_API
-	.tx_dma_channel = 0, 
-	.tx_dma_source = kDmaRequestMuxFlexIO1Request0Request1, 
-	.rx_dma_channel = 1, 
-	.rx_dma_source = kDmaRequestMuxFlexIO1Request2Request3, 
+	.tx_dma_channel = 0,
+	.tx_dma_source = kDmaRequestMuxFlexIO1Request0Request1,
+	.rx_dma_channel = 1,
+	.rx_dma_source = kDmaRequestMuxFlexIO1Request2Request3,
 #endif
 };
 
@@ -1230,14 +1206,14 @@ static void mcux_flexio_uart_config_func_1(struct device *dev);
 #endif
 
 static FLEXIO_UART_Type uart_1_flexio_config = {
-	
-    .flexioBase      = FLEXIO2,
-    .TxPinIndex      = DT_INST_1_NXP_IMXRT_FLEXIO_UART_TXD_SIGNAL, 
-    .RxPinIndex      = DT_INST_1_NXP_IMXRT_FLEXIO_UART_RXD_SIGNAL,
-    .shifterIndex[0] = 0U,
-    .shifterIndex[1] = 2U,
-    .timerIndex[0]   = 0U,
-    .timerIndex[1]   = 1U
+
+	.flexioBase = FLEXIO2,
+	.TxPinIndex = DT_INST_1_NXP_IMXRT_FLEXIO_UART_TXD_SIGNAL,
+	.RxPinIndex = DT_INST_1_NXP_IMXRT_FLEXIO_UART_RXD_SIGNAL,
+	.shifterIndex[0] = 0U,
+	.shifterIndex[1] = 2U,
+	.timerIndex[0] = 0U,
+	.timerIndex[1] = 1U
 };
 
 static const struct mcux_flexio_uart_config mcux_flexio_uart_1_config = {
@@ -1245,12 +1221,12 @@ static const struct mcux_flexio_uart_config mcux_flexio_uart_1_config = {
 #ifdef DT_INST_1_NXP_IMXRT_FLEXIO_UART_TXCLK_SIGNAL
 	.tx_clk_pin_index = DT_INST_1_NXP_IMXRT_FLEXIO_UART_TXCLK_SIGNAL,
 #else
-	.tx_clk_pin_index =	 0xFF,
+	.tx_clk_pin_index =      0xFF,
 #endif
 #ifdef DT_INST_1_NXP_IMXRT_FLEXIO_UART_RXCLK_SIGNAL
 	.rx_clk_pin_index = DT_INST_1_NXP_IMXRT_FLEXIO_UART_RXCLK_SIGNAL,
 #else
-	.rx_clk_pin_index =	 0xFF,
+	.rx_clk_pin_index =      0xFF,
 #endif
 	.clock_controller = DT_INST_1_NXP_IMXRT_FLEXIO_UART_CLOCK_CONTROLLER,
 	.clock_subsys =
@@ -1260,10 +1236,10 @@ static const struct mcux_flexio_uart_config mcux_flexio_uart_1_config = {
 	.irq_config_func = mcux_flexio_uart_config_func_1,
 #endif
 #ifdef CONFIG_UART_ASYNC_API
-	.tx_dma_channel = 2, 
-	.tx_dma_source = kDmaRequestMuxFlexIO2Request0Request1, 
-	.rx_dma_channel = 3, 
-	.rx_dma_source = kDmaRequestMuxFlexIO2Request2Request3, 
+	.tx_dma_channel = 2,
+	.tx_dma_source = kDmaRequestMuxFlexIO2Request0Request1,
+	.rx_dma_channel = 3,
+	.rx_dma_source = kDmaRequestMuxFlexIO2Request2Request3,
 #endif
 };
 
