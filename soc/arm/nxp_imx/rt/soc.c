@@ -167,7 +167,7 @@ static ALWAYS_INLINE void clock_init(void)
 	CLOCK_SetDiv(kCLOCK_Flexio1PreDiv, (DT_INST_0_NXP_IMXRT_FLEXIO_UART_CLOCK_CONFIG_1-1)); /* Set pre-divider  */
 	CLOCK_SetDiv(kCLOCK_Flexio1Div, (DT_INST_0_NXP_IMXRT_FLEXIO_UART_CLOCK_CONFIG_2-1)); /* Set divider*/
 #endif
-	
+
 #ifdef CONFIG_UART_MCUX_FLEXIO_UART_2
 	CLOCK_SetMux(kCLOCK_Flexio2Mux, (DT_INST_1_NXP_IMXRT_FLEXIO_UART_CLOCK_CONFIG_0)); /* Set FLEXIO1 source  */
 	CLOCK_SetDiv(kCLOCK_Flexio2PreDiv, (DT_INST_1_NXP_IMXRT_FLEXIO_UART_CLOCK_CONFIG_1-1)); /* Set pre-divider  */
@@ -218,7 +218,7 @@ static ALWAYS_INLINE void clock_init(void)
 	CLOCK_EnableClock(kCLOCK_Semc);
 	//CLOCK_EnableClock(kCLOCK_SemcExsc);
 	CLOCK_SetMux(kCLOCK_SemcMux, 1);
-    CLOCK_SetDiv(kCLOCK_SemcDiv, 1);
+	CLOCK_SetDiv(kCLOCK_SemcDiv, 1);
 
 	/* Keep the system clock running so SYSTICK can wake up the system from
 	 * wfi.
