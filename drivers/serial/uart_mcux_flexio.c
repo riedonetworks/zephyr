@@ -1030,12 +1030,6 @@ static int mcux_flexio_uart_init(struct device *dev)
 		FLEXIO_SetTimerConfig(config->base->flexioBase, config->base->timerIndex[1], &timerConfig);
 	}
 
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-
-	FLEXIO_UART_EnableInterrupts(config->base,
-				     kFLEXIO_UART_TxDataRegEmptyInterruptEnable | kFLEXIO_UART_RxDataRegFullInterruptEnable);
-	config->irq_config_func(dev);
-#endif
 
 #ifdef CONFIG_UART_ASYNC_API
 	k_delayed_work_init(&data->tx_timeout_work, mcux_flex_io_uart_tx_timeout);
