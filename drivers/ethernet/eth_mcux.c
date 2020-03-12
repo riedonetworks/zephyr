@@ -405,19 +405,24 @@ static void eth_mcux_phy_setup(void)
 	/* Disable MII interrupts to prevent triggering PHY events. */
 	ENET_DisableInterrupts(ENET, ENET_EIR_MII_MASK);
 
-	/* Prevent PHY entering NAND Tree mode override. */
 	res = PHY_Read(ENET, phy_addr, PHY_OMS_OVERRIDE_REG, &oms_override);
 	if (res != kStatus_Success) {
 		LOG_WRN("Reading PHY reg failed (status 0x%x)", res);
 	} else {
+		/* Based on strap-in pins the PHY can be in factory test mode.
+		 * Force normal operation.
+		 */
+		oms_override &= ~PHY_OMS_FACTORY_MODE_MASK;
+
+		/* Prevent PHY entering NAND Tree mode override. */
 		if (oms_override & PHY_OMS_NANDTREE_MASK) {
 			oms_override &= ~PHY_OMS_NANDTREE_MASK;
-			res = PHY_Write(ENET, phy_addr, PHY_OMS_OVERRIDE_REG,
-					oms_override);
-			if (res != kStatus_Success) {
-				LOG_WRN("Writing PHY reg failed (status 0x%x)",
-					res);
-			}
+		}
+
+		res = PHY_Write(ENET, phy_addr, PHY_OMS_OVERRIDE_REG,
+				oms_override);
+		if (res != kStatus_Success) {
+			LOG_WRN("Writing PHY reg failed (status 0x%x)", res);
 		}
 	}
 
