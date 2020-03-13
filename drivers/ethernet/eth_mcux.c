@@ -301,8 +301,6 @@ static void eth_mcux_phy_event(struct eth_context *context)
 	switch (context->phy_state) {
 	case eth_mcux_phy_state_initial:
 #ifdef CONFIG_SOC_SERIES_IMX_RT
-		ENET_StartSMIRead(context->base, context->phy_addr,
-				  PHY_CONTROL2_REG, kENET_MiiReadValidFrame);
 		ENET_StartSMIWrite(context->base, context->phy_addr,
 				   PHY_CONTROL2_REG, kENET_MiiWriteValidFrame,
 				   PHY_CTL2_REFCLK_SELECT_MASK);
