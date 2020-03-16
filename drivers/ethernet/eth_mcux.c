@@ -1137,7 +1137,7 @@ static void eth_1_config_func(void);
 static struct eth_context eth_1_context = {
 	.base = ENET2,
 	.config_func = eth_1_config_func,
-	.phy_addr = 0U,
+	.phy_addr = 1U,
 	.phy_duplex = kPHY_FullDuplex,
 	.phy_speed = kPHY_Speed100M,
 #if defined(CONFIG_ETH_MCUX_1_UNIQUE_MAC)
