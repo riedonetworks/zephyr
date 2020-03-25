@@ -1,0 +1,23 @@
+#
+# Copyright (c) 2020 Riedo Networks Ltd.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menuconfig FLEXSPI_NOR_FLASH
+	bool "SPI NOR flash controlled by FlexSPI"
+	depends on SOC_SERIES_IMX_RT
+	select FLASH_HAS_DRIVER_ENABLED
+	select FLASH_HAS_PAGE_LAYOUT
+
+if FLEXSPI_NOR_FLASH
+
+config FLEXSPI_NOR_FLASH_INIT_PRIORITY
+	int
+	default 80
+	help
+	  Device driver initialization priority.
+	  Device is connected to (Flex)SPI bus, it has to
+	  be initialized after FlexSPI driver.
+
+endif

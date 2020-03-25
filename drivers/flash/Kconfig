@@ -69,4 +69,6 @@ source "drivers/flash/Kconfig.simulator"
 
 source "drivers/flash/Kconfig.rv32m1"
 
+source "drivers/flash/Kconfig.flexspi_nor"
+
 endif # FLASH
