@@ -74,10 +74,14 @@ int flexspi_nor_flash_erase(struct device *dev, off_t offset, size_t size)
 		return -EINVAL;
 	}
 
-	struct flexspi_flash_data *drv_data =  dev->driver_data;
+	struct flexspi_flash_data *drv_data = dev->driver_data;
 	flexspi_transfer_t flashXfer;
 	status_t status;
 
+	int retval = 0;
+
+	k_sched_lock();
+	unsigned int key = irq_lock();
 
 	/* Erase sector */
 	flashXfer.deviceAddress = offset;
@@ -87,19 +91,24 @@ int flexspi_nor_flash_erase(struct device *dev, off_t offset, size_t size)
 	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_ERASESECTOR;
 	status = FLEXSPI_TransferBlocking(drv_data->base, &flashXfer);
 	if (status != kStatus_Success) {
-		return -EIO;
+		retval = -EIO;
+		goto done;
 	}
 
 	status = flexspi_nor_flash_wait_bus_busy(drv_data->base,
 						 drv_data->port);
 	if (status != kStatus_Success) {
-		return -EIO;
+		retval = -EIO;
+		goto done;
 	}
 
 	// /* Do software reset. */
 	// FLEXSPI_SoftwareReset(base);
 
-	return 0;
+done:
+	irq_unlock(key);
+	k_sched_unlock();
+	return retval;
 }
 
 #define PAGE_SIZE 256U
@@ -112,9 +121,13 @@ int flexspi_nor_flash_write(struct device *dev, off_t offset,
 		return -EINVAL;
 	}
 
-	struct flexspi_flash_data *drv_data =  dev->driver_data;
+	struct flexspi_flash_data *drv_data = dev->driver_data;
 	flexspi_transfer_t flashXfer;
 	status_t status;
+	int retval = 0;
+
+	k_sched_lock();
+	unsigned int key = irq_lock();
 
 	flashXfer.deviceAddress = offset;
 	flashXfer.port          = drv_data->port;
@@ -125,19 +138,24 @@ int flexspi_nor_flash_write(struct device *dev, off_t offset,
 	flashXfer.dataSize      = len;
 	status = FLEXSPI_TransferBlocking(drv_data->base, &flashXfer);
 	if (status != kStatus_Success) {
-		return -EIO;
+		retval = -EIO;
+		goto done;
 	}
 
 	status = flexspi_nor_flash_wait_bus_busy(drv_data->base,
 						 drv_data->port);
 	if (status != kStatus_Success) {
-		return -EIO;
+		retval = -EIO;
+		goto done;
 	}
 
 	/* Do software reset. */
 	// FLEXSPI_SoftwareReset(base);
 
-	return 0;
+done:
+	irq_unlock(key);
+	k_sched_unlock();
+	return retval;
 }
 
 /*******************************************************************************
