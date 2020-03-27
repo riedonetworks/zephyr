@@ -15,7 +15,11 @@ zephyr_library_sources_ifdef(CONFIG_SOC_FLASH_NIOS2_QSPI soc_flash_nios2_qspi.c)
 zephyr_library_sources_ifdef(CONFIG_SOC_FLASH_GECKO flash_gecko.c)
 zephyr_library_sources_ifdef(CONFIG_FLASH_NATIVE_POSIX flash_native_posix.c)
 zephyr_library_sources_ifdef(CONFIG_SOC_FLASH_RV32M1 soc_flash_rv32m1.c)
-zephyr_library_sources_ifdef(CONFIG_FLEXSPI_NOR_FLASH flexspi_nor_flash.c)
+zephyr_library_sources_ifdef(CONFIG_FLEXSPI_NOR_FLASH flexspi_nor_flash.c flexspi_nor_flash_ram_func.c)
+
+if(CONFIG_FLEXSPI_NOR_FLASH)
+  zephyr_code_relocate(flexspi_nor_flash_ram_func.c SRAM)
+endif()
 
 if(CONFIG_CLOCK_CONTROL_STM32_CUBE)
   zephyr_sources(flash_stm32.c)
