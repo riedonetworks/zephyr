@@ -13,15 +13,132 @@
 LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
 #if !defined(CONFIG_CODE_DATA_RELOCATION)
-// #error CONFIG_CODE_DATA_RELOCATION must be enable to use FLEXSPI_NOR_FLASH.
-#warning CONFIG_CODE_DATA_RELOCATION must be enable to use FLEXSPI_NOR_FLASH.
+#error CONFIG_CODE_DATA_RELOCATION must be enable to use FLEXSPI_NOR_FLASH.
 #endif
+
+/*******************************************************************************
+ *  H E L P E R S
+*******************************************************************************/
+
+#define REG_STATUS_BIT_BUSY 1U
+
+status_t flexspi_nor_flash_wait_bus_busy(FLEXSPI_Type *base,
+					 flexspi_port_t port)
+{
+	flexspi_transfer_t flashXfer;
+	status_t status;
+	u32_t reg;
+	bool isBusy;
+
+	flashXfer.deviceAddress = 0;
+	flashXfer.port          = port;
+	flashXfer.cmdType       = kFLEXSPI_Read;
+	flashXfer.SeqNumber     = 1;
+	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_READSTATUSREG;
+	flashXfer.data          = &reg;
+	flashXfer.dataSize      = 1;
+
+	do {
+		status = FLEXSPI_TransferBlocking(base, &flashXfer);
+		if (status != kStatus_Success) {
+			return status;
+		}
+
+		if (reg & REG_STATUS_BIT_BUSY) {
+			isBusy = true;
+		}
+		else {
+			isBusy = false;
+		}
+	} while (isBusy);
+
+	return status;
+}
 
 /*******************************************************************************
  *  F L A S H   A P I
 *******************************************************************************/
 
+#define SECTOR_SIZE 4096U
+#define SECTOR_MASK (4096U - 1U)
 
+int flexspi_nor_flash_erase(struct device *dev, off_t offset, size_t size)
+{
+	// /* Offset must be between 0 and flash size */
+	// if ((offset < 0) || ((offset + size) > <FLASH SIZE>)) {
+	// 	return -ENODEV;
+	// }
+
+	/* Offset must correspond to a sector start */
+	if (offset & SECTOR_MASK) {
+		return -EINVAL;
+	}
+
+	struct flexspi_flash_data *drv_data =  dev->driver_data;
+	flexspi_transfer_t flashXfer;
+	status_t status;
+
+
+	/* Erase sector */
+	flashXfer.deviceAddress = offset;
+	flashXfer.port          = drv_data->port;
+	flashXfer.cmdType       = kFLEXSPI_Command;
+	flashXfer.SeqNumber     = 1;
+	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_ERASESECTOR;
+	status = FLEXSPI_TransferBlocking(drv_data->base, &flashXfer);
+	if (status != kStatus_Success) {
+		return -EIO;
+	}
+
+	status = flexspi_nor_flash_wait_bus_busy(drv_data->base,
+						 drv_data->port);
+	if (status != kStatus_Success) {
+		return -EIO;
+	}
+
+	// /* Do software reset. */
+	// FLEXSPI_SoftwareReset(base);
+
+	return 0;
+}
+
+#define PAGE_SIZE 256U
+// #define PAGE_MASK (256U -1U)
+
+int flexspi_nor_flash_write(struct device *dev, off_t offset,
+			    const void *data, size_t len)
+{
+	if (len > PAGE_SIZE) {
+		return -EINVAL;
+	}
+
+	struct flexspi_flash_data *drv_data =  dev->driver_data;
+	flexspi_transfer_t flashXfer;
+	status_t status;
+
+	flashXfer.deviceAddress = offset;
+	flashXfer.port          = drv_data->port;
+	flashXfer.cmdType       = kFLEXSPI_Write;
+	flashXfer.SeqNumber     = 1;
+	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_PAGEPROGRAM_SINGLE;
+	flashXfer.data          = (u32_t *)data;
+	flashXfer.dataSize      = len;
+	status = FLEXSPI_TransferBlocking(drv_data->base, &flashXfer);
+	if (status != kStatus_Success) {
+		return -EIO;
+	}
+
+	status = flexspi_nor_flash_wait_bus_busy(drv_data->base,
+						 drv_data->port);
+	if (status != kStatus_Success) {
+		return -EIO;
+	}
+
+	/* Do software reset. */
+	// FLEXSPI_SoftwareReset(base);
+
+	return 0;
+}
 
 /*******************************************************************************
  *  I N I T

@@ -9,8 +9,6 @@
  * Adapted from MCUXpresso SDK "driver_examples/flexspi/nor/polling_transfer".
  */
 
-#include <drivers/flash.h>
-
 #include "flexspi_nor_flash.h"
 
 /*******************************************************************************
@@ -35,51 +33,6 @@ static int flexspi_nor_flash_read(struct device *dev, off_t offset,
 	if (status != kStatus_Success) {
 		return -EIO;
 	}
-
-	return 0;
-}
-
-static int flexspi_nor_flash_write(struct device *dev, off_t offset,
-				   const void *data, size_t len)
-{
-	/* NOT IMPLEMENTED YET */
-	return -EPERM;
-}
-
-#define SECTOR_SIZE 4096U
-#define SECTOR_MASK (4096U - 1U)
-
-static int flexspi_nor_flash_erase(struct device *dev, off_t offset,
-				   size_t size)
-{
-	// /* Offset must be between 0 and flash size */
-	// if ((offset < 0) || ((offset + size) > <FLASH SIZE>)) {
-	// 	return -ENODEV;
-	// }
-
-	/* Offset must correspond to a sector start */
-	if (offset & SECTOR_MASK) {
-		return -EINVAL;
-	}
-
-	struct flexspi_flash_data *drv_data =  dev->driver_data;
-	flexspi_transfer_t flashXfer;
-	status_t status;
-
-	flashXfer.deviceAddress = offset;
-	flashXfer.port          = drv_data->port;
-	flashXfer.cmdType       = kFLEXSPI_Command;
-	flashXfer.SeqNumber     = 1;
-	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_ERASESECTOR;
-	status = FLEXSPI_TransferBlocking(drv_data->base, &flashXfer);
-	if (status != kStatus_Success) {
-		return -EIO;
-	}
-
-	// status = flexspi_nor_wait_bus_busy(base);
-
-	// /* Do software reset. */
-	// FLEXSPI_SoftwareReset(base);
 
 	return 0;
 }
