@@ -64,12 +64,21 @@ static int flexspi_nor_flash_write_protection_set(struct device *dev,
 }
 
 #if defined(CONFIG_FLASH_PAGE_LAYOUT)
+/* FIXME: Valid for W25Q128 only, get it from DTS */
+static const struct flash_pages_layout dev_layout = {
+	/* "page" means the smallest erasable area on the flash device */
+	.pages_count = 4 * 1024,  /* sectors */
+	.pages_size  = 4 * 1024,  /* of 4 kiB */
+};
+
 static void flexspi_nor_flash_pages_layout(
 	struct device *dev,
 	const struct flash_pages_layout **layout,
 	size_t *layout_size
 )
 {
+	*layout_size = 1;
+	*layout = &dev_layout;
 }
 #endif /* CONFIG_FLASH_PAGE_LAYOUT */
 
