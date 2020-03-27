@@ -18,7 +18,7 @@
 static int flexspi_nor_flash_read(struct device *dev, off_t offset,
 				  void *data, size_t len)
 {
-	struct flexspi_flash_data *drv_data =  dev->driver_data;
+	struct flexspi_flash_data *drv_data = dev->driver_data;
 	flexspi_transfer_t flashXfer;
 	status_t status;
 
@@ -47,14 +47,15 @@ static int flexspi_nor_flash_write_protection_set(struct device *dev,
 		return 0;
 	}
 
-	struct flexspi_flash_data *drv_data =  dev->driver_data;
+	struct flexspi_flash_data *drv_data = dev->driver_data;
 	flexspi_transfer_t flashXfer;
 	status_t status;
 
-	flashXfer.port      = drv_data->port;
-	flashXfer.cmdType   = kFLEXSPI_Command;
-	flashXfer.SeqNumber = 1;
-	flashXfer.seqIndex  = NOR_CMD_LUT_SEQ_IDX_WRITEENABLE;
+	flashXfer.deviceAddress = 0; // TODO Figure out if this can be left to unknown
+	flashXfer.port          = drv_data->port;
+	flashXfer.cmdType       = kFLEXSPI_Command;
+	flashXfer.SeqNumber     = 1;
+	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_WRITEENABLE;
 	status = FLEXSPI_TransferBlocking(drv_data->base, &flashXfer);
 	if (status != kStatus_Success) {
 		return -EIO;
