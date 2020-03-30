@@ -20,29 +20,9 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
  * Winbond W25Q128 LUT
  ******************************************************************************/
 
-#define W25Q128_LUT_LENGTH 64
+#define W25Q128_LUT_LENGTH (8 * 4)
 
 static const uint32_t w25q128LUT[W25Q128_LUT_LENGTH] = {
-	/* Normal read mode - SDR */
-	[4 * NOR_CMD_LUT_SEQ_IDX_READ_NORMAL] = FLEXSPI_LUT_SEQ(
-		kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x03,
-		kFLEXSPI_Command_RADDR_SDR, kFLEXSPI_1PAD, 0x18
-	),
-	[4 * NOR_CMD_LUT_SEQ_IDX_READ_NORMAL + 1] = FLEXSPI_LUT_SEQ(
-		kFLEXSPI_Command_READ_SDR, kFLEXSPI_1PAD, 0x04,
-		kFLEXSPI_Command_STOP, 0, 0
-	),
-
-	/* Fast read mode - SDR */
-	[4 * NOR_CMD_LUT_SEQ_IDX_READ_FAST] = FLEXSPI_LUT_SEQ(
-		kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x0B,
-		kFLEXSPI_Command_RADDR_SDR, kFLEXSPI_1PAD, 0x18
-	),
-	[4 * NOR_CMD_LUT_SEQ_IDX_READ_FAST + 1] = FLEXSPI_LUT_SEQ(
-		kFLEXSPI_Command_DUMMY_SDR, kFLEXSPI_1PAD, 0x08,
-		kFLEXSPI_Command_READ_SDR, kFLEXSPI_1PAD, 0x04
-	),
-
 	/* Fast read quad mode - SDR */
 	[4 * NOR_CMD_LUT_SEQ_IDX_READ_FAST_QUAD] = FLEXSPI_LUT_SEQ(
 		kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0xEB,
@@ -51,12 +31,6 @@ static const uint32_t w25q128LUT[W25Q128_LUT_LENGTH] = {
 	[4 * NOR_CMD_LUT_SEQ_IDX_READ_FAST_QUAD + 1] = FLEXSPI_LUT_SEQ(
 		kFLEXSPI_Command_DUMMY_SDR, kFLEXSPI_4PAD, 0x06,
 		kFLEXSPI_Command_READ_SDR, kFLEXSPI_4PAD, 0x04
-	),
-
-	/* Read extend parameters */
-	[4 * NOR_CMD_LUT_SEQ_IDX_READSTATUS] = FLEXSPI_LUT_SEQ(
-		kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x81,
-		kFLEXSPI_Command_READ_SDR, kFLEXSPI_1PAD, 0x04
 	),
 
 	/* Write Enable */
@@ -82,72 +56,54 @@ static const uint32_t w25q128LUT[W25Q128_LUT_LENGTH] = {
 	),
 
 	/* Page Program - quad mode */
-	[4 * NOR_CMD_LUT_SEQ_IDX_PAGEPROGRAM_QUAD] = FLEXSPI_LUT_SEQ(
-		kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x32,
-		kFLEXSPI_Command_RADDR_SDR, kFLEXSPI_1PAD, 0x18
-	),
-	[4 * NOR_CMD_LUT_SEQ_IDX_PAGEPROGRAM_QUAD + 1] = FLEXSPI_LUT_SEQ(
-		kFLEXSPI_Command_WRITE_SDR, kFLEXSPI_4PAD, 0x04,
-		kFLEXSPI_Command_STOP, 0, 0
-	),
+	// [4 * NOR_CMD_LUT_SEQ_IDX_PAGEPROGRAM_QUAD] = FLEXSPI_LUT_SEQ(
+	// 	kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x32,
+	// 	kFLEXSPI_Command_RADDR_SDR, kFLEXSPI_1PAD, 0x18
+	// ),
+	// [4 * NOR_CMD_LUT_SEQ_IDX_PAGEPROGRAM_QUAD + 1] = FLEXSPI_LUT_SEQ(
+	// 	kFLEXSPI_Command_WRITE_SDR, kFLEXSPI_4PAD, 0x04,
+	// 	kFLEXSPI_Command_STOP, 0, 0
+	// ),
 
-	/* Read ID */
-	[4 * NOR_CMD_LUT_SEQ_IDX_READID] = FLEXSPI_LUT_SEQ(
+	/* Read JEDEC ID */
+	[4 * NOR_CMD_LUT_SEQ_IDX_READJEDECID] = FLEXSPI_LUT_SEQ(
 		kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x9F,
 		kFLEXSPI_Command_READ_SDR, kFLEXSPI_1PAD, 0x04
 	),
 
-	/* Enable Quad mode */
-	[4 * NOR_CMD_LUT_SEQ_IDX_WRITESTATUSREG] = FLEXSPI_LUT_SEQ(
-		kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x01,
-		kFLEXSPI_Command_WRITE_SDR, kFLEXSPI_1PAD, 0x04
-	),
-
-	/* Enter QPI mode */
-	[4 * NOR_CMD_LUT_SEQ_IDX_ENTERQPI] = FLEXSPI_LUT_SEQ(
-		kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x35,
-		kFLEXSPI_Command_STOP, 0, 0
-	),
-
-	/* Exit QPI mode */
-	[4 * NOR_CMD_LUT_SEQ_IDX_EXITQPI] = FLEXSPI_LUT_SEQ(
-		kFLEXSPI_Command_SDR, kFLEXSPI_4PAD, 0xF5,
-		kFLEXSPI_Command_STOP, 0, 0
-	),
-
 	/* Read status register 1 */
-	[4 * NOR_CMD_LUT_SEQ_IDX_READSTATUSREG] = FLEXSPI_LUT_SEQ(
+	[4 * NOR_CMD_LUT_SEQ_IDX_READSTATUSREG1] = FLEXSPI_LUT_SEQ(
 		kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x05,
 		kFLEXSPI_Command_READ_SDR, kFLEXSPI_1PAD, 0x04
 	),
 
-	/* Erase whole chip */
-	[4 * NOR_CMD_LUT_SEQ_IDX_ERASECHIP] = FLEXSPI_LUT_SEQ(
-		kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0xC7,
-		kFLEXSPI_Command_STOP, 0, 0
-	),
-
-	/* Read sector lock status */
-	[4 * NOR_CMD_LUT_SEQ_IDX_READSECTORLOCK] = FLEXSPI_LUT_SEQ(
-		kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x3D,
-		kFLEXSPI_Command_RADDR_SDR, kFLEXSPI_1PAD, 0x18
-	),
-	[4 * NOR_CMD_LUT_SEQ_IDX_READSECTORLOCK + 1] = FLEXSPI_LUT_SEQ(
-		kFLEXSPI_Command_READ_SDR, kFLEXSPI_1PAD, 0x04,
-		kFLEXSPI_Command_STOP, 0, 0
+	/* Read status register 2 */
+	[4 * NOR_CMD_LUT_SEQ_IDX_READSTATUSREG2] = FLEXSPI_LUT_SEQ(
+		kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x35,
+		kFLEXSPI_Command_READ_SDR, kFLEXSPI_1PAD, 0x04
 	),
 
 	/* Read status register 3 */
-// 	[4 * NOR_CMD_LUT_SEQ_IDX_READSTATUSREG3] = FLEXSPI_LUT_SEQ(
-// 		kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x15,
-// 		kFLEXSPI_Command_READ_SDR, kFLEXSPI_1PAD, 0x04
-// 	),
-
-        /* Global Block/Sector Unlock */
-	[4 * NOR_CMD_LUT_SEQ_IDX_GLOBALSECTORUNLOCK] = FLEXSPI_LUT_SEQ(
-		kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x98,
-		kFLEXSPI_Command_STOP, 0, 0
+	[4 * NOR_CMD_LUT_SEQ_IDX_READSTATUSREG3] = FLEXSPI_LUT_SEQ(
+		kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x15,
+		kFLEXSPI_Command_READ_SDR, kFLEXSPI_1PAD, 0x04
 	),
+
+	/* Read sector lock status */
+	// [4 * NOR_CMD_LUT_SEQ_IDX_READSECTORLOCK] = FLEXSPI_LUT_SEQ(
+	// 	kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x3D,
+	// 	kFLEXSPI_Command_RADDR_SDR, kFLEXSPI_1PAD, 0x18
+	// ),
+	// [4 * NOR_CMD_LUT_SEQ_IDX_READSECTORLOCK + 1] = FLEXSPI_LUT_SEQ(
+	// 	kFLEXSPI_Command_READ_SDR, kFLEXSPI_1PAD, 0x04,
+	// 	kFLEXSPI_Command_STOP, 0, 0
+	// ),
+
+	/* Global Block/Sector Unlock */
+	// [4 * NOR_CMD_LUT_SEQ_IDX_GLOBALSECTORUNLOCK] = FLEXSPI_LUT_SEQ(
+	// 	kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x98,
+	// 	kFLEXSPI_Command_STOP, 0, 0
+	// ),
 };
 
 /*******************************************************************************
@@ -168,7 +124,7 @@ status_t flexspi_nor_flash_wait_bus_busy(FLEXSPI_Type *base,
 	flashXfer.port          = port;
 	flashXfer.cmdType       = kFLEXSPI_Read;
 	flashXfer.SeqNumber     = 1;
-	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_READSTATUSREG;
+	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_READSTATUSREG1;
 	flashXfer.data          = &reg;
 	flashXfer.dataSize      = 1;
 
