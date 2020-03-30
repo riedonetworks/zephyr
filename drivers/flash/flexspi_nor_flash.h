@@ -25,6 +25,7 @@ status_t flexspi_nor_flash_wait_bus_busy(FLEXSPI_Type *base,
 int flexspi_nor_flash_erase(struct device *dev, off_t offset, size_t size);
 int flexspi_nor_flash_write(struct device *dev, off_t offset,
 			    const void *data, size_t len);
+int flexspi_nor_flash_write_protection_set(struct device *dev, bool enable);
 int flexspi_nor_flash_init(struct device *dev);
 
 /*******************************************************************************

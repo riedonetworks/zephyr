@@ -39,8 +39,7 @@ static int flexspi_nor_flash_read(struct device *dev, off_t offset,
 	return 0;
 }
 
-static int flexspi_nor_flash_write_protection_set(struct device *dev,
-						  bool enable)
+int flexspi_nor_flash_write_protection_set(struct device *dev, bool enable)
 {
 	if (enable) {
 		/* no-op since protection is automatically set

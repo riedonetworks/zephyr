@@ -221,16 +221,11 @@ done:
 
 /* FIXME: Get it from DTS */
 #define PAGE_SIZE 256U
+#define PAGE_MASK (256U - 1U)
 
-int flexspi_nor_flash_write(struct device *dev, off_t offset,
-			    const void *data, size_t len)
+static int flexspi_nor_flash_page_program(struct device *dev, off_t offset,
+					  const void *data, size_t len)
 {
-	// TODO: Allow to write more than a page, by splitting writes
-	//       into page size chunks.
-	if (len > PAGE_SIZE) {
-		return -EINVAL;
-	}
-
 	struct flexspi_flash_data *drv_data = dev->driver_data;
 	flexspi_transfer_t flashXfer;
 	status_t status;
@@ -264,6 +259,54 @@ done:
 	irq_unlock(key);
 	k_sched_unlock();
 	return retval;
+}
+
+int flexspi_nor_flash_write(struct device *dev, off_t offset,
+			    const void *data, size_t len)
+{
+	// /* Offset must be between 0 and flash size */
+	// if ((offset < 0) || ((offset + size) > <FLASH SIZE>)) {
+	// 	return -ENODEV;
+	// }
+
+	// /* Offset + len must not exceed flash size */
+	// if (offset + len > <FLASH SIZE>)
+	// 	return -EINVAL;
+	// }
+
+	/* Cast data  to prevent  void * arithmetic */
+	const u8_t *data_ptr = data;
+	off_t next_page_offset;
+	size_t chunk_len;
+	int retval;
+
+	while (len > 0) {
+		next_page_offset = (offset & ~PAGE_MASK) + PAGE_SIZE;
+		chunk_len = next_page_offset - offset;
+		if (chunk_len > len) {
+			chunk_len = len;
+		}
+
+		retval = flexspi_nor_flash_page_program(dev, offset,
+							data_ptr, chunk_len);
+		if (retval) {
+			return retval;
+		}
+
+		len      -= chunk_len;
+		offset   += chunk_len;
+		data_ptr += chunk_len;
+
+		if (len > 0) {
+			retval = flexspi_nor_flash_write_protection_set(dev,
+									false);
+			if (retval) {
+				return retval;
+			}
+		}
+	}
+
+	return 0;
 }
 
 /*******************************************************************************
