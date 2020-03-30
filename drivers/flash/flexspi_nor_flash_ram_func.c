@@ -45,25 +45,15 @@ static const uint32_t w25q128LUT[W25Q128_LUT_LENGTH] = {
 		kFLEXSPI_Command_RADDR_SDR, kFLEXSPI_1PAD, 0x18
 	),
 
-	/* Page Program - single mode */
-	[4 * NOR_CMD_LUT_SEQ_IDX_PAGEPROGRAM_SINGLE] = FLEXSPI_LUT_SEQ(
-		kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x02,
+	/* Page Program - quad mode */
+	[4 * NOR_CMD_LUT_SEQ_IDX_PAGEPROGRAM_QUAD] = FLEXSPI_LUT_SEQ(
+		kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x32,
 		kFLEXSPI_Command_RADDR_SDR, kFLEXSPI_1PAD, 0x18
 	),
-	[4 * NOR_CMD_LUT_SEQ_IDX_PAGEPROGRAM_SINGLE + 1] = FLEXSPI_LUT_SEQ(
-		kFLEXSPI_Command_WRITE_SDR, kFLEXSPI_1PAD, 0x04,
+	[4 * NOR_CMD_LUT_SEQ_IDX_PAGEPROGRAM_QUAD + 1] = FLEXSPI_LUT_SEQ(
+		kFLEXSPI_Command_WRITE_SDR, kFLEXSPI_4PAD, 0x04,
 		kFLEXSPI_Command_STOP, 0, 0
 	),
-
-	/* Page Program - quad mode */
-	// [4 * NOR_CMD_LUT_SEQ_IDX_PAGEPROGRAM_QUAD] = FLEXSPI_LUT_SEQ(
-	// 	kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x32,
-	// 	kFLEXSPI_Command_RADDR_SDR, kFLEXSPI_1PAD, 0x18
-	// ),
-	// [4 * NOR_CMD_LUT_SEQ_IDX_PAGEPROGRAM_QUAD + 1] = FLEXSPI_LUT_SEQ(
-	// 	kFLEXSPI_Command_WRITE_SDR, kFLEXSPI_4PAD, 0x04,
-	// 	kFLEXSPI_Command_STOP, 0, 0
-	// ),
 
 	/* Read JEDEC ID */
 	[4 * NOR_CMD_LUT_SEQ_IDX_READJEDECID] = FLEXSPI_LUT_SEQ(
@@ -250,7 +240,7 @@ int flexspi_nor_flash_write(struct device *dev, off_t offset,
 	flashXfer.port          = drv_data->port;
 	flashXfer.cmdType       = kFLEXSPI_Write;
 	flashXfer.SeqNumber     = 1;
-	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_PAGEPROGRAM_SINGLE;
+	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_PAGEPROGRAM_QUAD;
 	flashXfer.data          = (u32_t *)data;
 	flashXfer.dataSize      = len;
 	status = FLEXSPI_TransferBlocking(drv_data->base, &flashXfer);
