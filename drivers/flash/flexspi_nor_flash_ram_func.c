@@ -1,8 +1,13 @@
 /*
  * Copyright (c) 2020 Riedo Networks Ltd.
  *
- * SPDX-License-Identifier: Apache-2.0
+ * SPDX-License-Identifier: BSD-3-Clause
  *
+ */
+
+/*
+ * This is a port of the MCUXpresso SDK
+ * "driver_examples/flexspi/nor/polling_transfer" to Zephyr.
  */
 
 #include "flexspi_nor_flash.h"
@@ -169,6 +174,8 @@ static status_t flexspi_nor_flash_get_reg(FLEXSPI_Type *base,
 
 int flexspi_nor_flash_erase(struct device *dev, off_t offset, size_t size)
 {
+	// TODO: Allow erasing more than one sector
+
 	// /* Offset must be between 0 and flash size */
 	// if ((offset < 0) || ((offset + size) > <FLASH SIZE>)) {
 	// 	return -ENODEV;
@@ -182,18 +189,17 @@ int flexspi_nor_flash_erase(struct device *dev, off_t offset, size_t size)
 	struct flexspi_flash_data *drv_data = dev->driver_data;
 	flexspi_transfer_t flashXfer;
 	status_t status;
-
 	int retval = 0;
 
 	k_sched_lock();
 	unsigned int key = irq_lock();
 
-	/* Erase sector */
 	flashXfer.deviceAddress = offset;
 	flashXfer.port          = drv_data->port;
 	flashXfer.cmdType       = kFLEXSPI_Command;
 	flashXfer.SeqNumber     = 1;
 	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_ERASESECTOR;
+
 	status = FLEXSPI_TransferBlocking(drv_data->base, &flashXfer);
 	if (status != kStatus_Success) {
 		retval = -EIO;
@@ -206,9 +212,6 @@ int flexspi_nor_flash_erase(struct device *dev, off_t offset, size_t size)
 		retval = -EIO;
 		goto done;
 	}
-
-	// /* Do software reset. */
-	// FLEXSPI_SoftwareReset(base);
 
 done:
 	irq_unlock(key);
@@ -241,8 +244,9 @@ int flexspi_nor_flash_write(struct device *dev, off_t offset,
 	flashXfer.cmdType       = kFLEXSPI_Write;
 	flashXfer.SeqNumber     = 1;
 	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_PAGEPROGRAM_QUAD;
-	flashXfer.data          = (u32_t *)data;
+	flashXfer.data          = (void *)data;
 	flashXfer.dataSize      = len;
+
 	status = FLEXSPI_TransferBlocking(drv_data->base, &flashXfer);
 	if (status != kStatus_Success) {
 		retval = -EIO;
@@ -255,9 +259,6 @@ int flexspi_nor_flash_write(struct device *dev, off_t offset,
 		retval = -EIO;
 		goto done;
 	}
-
-	/* Do software reset. */
-	// FLEXSPI_SoftwareReset(base);
 
 done:
 	irq_unlock(key);
@@ -274,10 +275,8 @@ int flexspi_nor_flash_init(struct device *dev)
 {
 	struct flexspi_flash_data *drv_data = dev->driver_data;
 
-	/* Update LUT table. */
 	FLEXSPI_UpdateLUT(drv_data->base, 0, w25q128LUT, W25Q128_LUT_LENGTH);
 
-	/* Do software reset. */
 	FLEXSPI_SoftwareReset(drv_data->base);
 
 #if CONFIG_FLASH_LOG_LEVEL >= 4

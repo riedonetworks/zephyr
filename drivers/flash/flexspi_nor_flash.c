@@ -1,12 +1,13 @@
 /*
  * Copyright (c) 2020 Riedo Networks Ltd.
  *
- * SPDX-License-Identifier: Apache-2.0
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  */
 
 /*
- * Adapted from MCUXpresso SDK "driver_examples/flexspi/nor/polling_transfer".
+ * This is a port of the MCUXpresso SDK
+ * "driver_examples/flexspi/nor/polling_transfer" to Zephyr.
  */
 
 #include "flexspi_nor_flash.h"
@@ -29,6 +30,7 @@ static int flexspi_nor_flash_read(struct device *dev, off_t offset,
 	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_READ_FAST_QUAD;
 	flashXfer.data          = data;
 	flashXfer.dataSize      = len;
+
 	status = FLEXSPI_TransferBlocking(drv_data->base, &flashXfer);
 	if (status != kStatus_Success) {
 		return -EIO;
@@ -56,6 +58,7 @@ static int flexspi_nor_flash_write_protection_set(struct device *dev,
 	flashXfer.cmdType       = kFLEXSPI_Command;
 	flashXfer.SeqNumber     = 1;
 	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_WRITEENABLE;
+
 	status = FLEXSPI_TransferBlocking(drv_data->base, &flashXfer);
 	if (status != kStatus_Success) {
 		return -EIO;
