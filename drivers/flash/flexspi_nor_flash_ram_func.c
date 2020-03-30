@@ -172,20 +172,8 @@ static status_t flexspi_nor_flash_get_reg(FLEXSPI_Type *base,
 #define SECTOR_SIZE 4096U
 #define SECTOR_MASK (4096U - 1U)
 
-int flexspi_nor_flash_erase(struct device *dev, off_t offset, size_t size)
+static int flexspi_nor_flash_sector_erase(struct device *dev, off_t offset)
 {
-	// TODO: Allow erasing more than one sector
-
-	// /* Offset must be between 0 and flash size */
-	// if ((offset < 0) || ((offset + size) > <FLASH SIZE>)) {
-	// 	return -ENODEV;
-	// }
-
-	/* Offset must correspond to a sector start */
-	if (offset & SECTOR_MASK) {
-		return -EINVAL;
-	}
-
 	struct flexspi_flash_data *drv_data = dev->driver_data;
 	flexspi_transfer_t flashXfer;
 	status_t status;
@@ -217,6 +205,43 @@ done:
 	irq_unlock(key);
 	k_sched_unlock();
 	return retval;
+}
+
+int flexspi_nor_flash_erase(struct device *dev, off_t offset, size_t len)
+{
+	// /* Offset must be between 0 and flash size */
+	// if ((offset < 0) || ((offset + size) > <FLASH SIZE>)) {
+	// 	return -ENODEV;
+	// }
+
+	/* Can only erase full sector(s) */
+	if ((offset & SECTOR_MASK) || (len & SECTOR_MASK)) {
+		return -EINVAL;
+	}
+
+	// TODO: Improve performance by using block erase 32 kiB ot 64 kiB
+	//       when len is big enough.
+
+	off_t sector;
+	int retval;
+
+	for (
+		sector = offset;
+		sector < offset + len - SECTOR_SIZE;
+		sector += SECTOR_SIZE
+	) {
+		retval = flexspi_nor_flash_sector_erase(dev, sector);
+		if (retval) {
+			return retval;
+		}
+
+		retval = flexspi_nor_flash_write_protection_set(dev, false);
+		if (retval) {
+			return retval;
+		}
+	}
+
+	return flexspi_nor_flash_sector_erase(dev, sector);
 }
 
 /* FIXME: Get it from DTS */
