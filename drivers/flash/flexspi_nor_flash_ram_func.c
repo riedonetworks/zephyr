@@ -145,6 +145,30 @@ status_t flexspi_nor_flash_wait_bus_busy(FLEXSPI_Type *base,
 	return status;
 }
 
+#if CONFIG_FLASH_LOG_LEVEL >= 4
+static status_t flexspi_nor_flash_get_reg(FLEXSPI_Type *base,
+					  flexspi_port_t port,
+					  u8_t cmd_idx,
+					  void *reg,
+					  size_t len)
+{
+	flexspi_transfer_t flashXfer;
+	status_t status;
+
+	flashXfer.deviceAddress = 0;
+	flashXfer.port          = port;
+	flashXfer.cmdType       = kFLEXSPI_Read;
+	flashXfer.SeqNumber     = 1;
+	flashXfer.seqIndex      = cmd_idx;
+	flashXfer.data          = reg;
+	flashXfer.dataSize      = len;
+
+	status = FLEXSPI_TransferBlocking(base, &flashXfer);
+
+	return status;
+}
+#endif
+
 /*******************************************************************************
  *  F L A S H   A P I
 *******************************************************************************/
@@ -265,6 +289,52 @@ int flexspi_nor_flash_init(struct device *dev)
 
 	/* Do software reset. */
 	FLEXSPI_SoftwareReset(drv_data->base);
+
+#if CONFIG_FLASH_LOG_LEVEL >= 4
+	volatile u32_t *lut = drv_data->base->LUT;
+
+	for (size_t i = 0; i < 16; i++) {
+		LOG_DBG("%s LUT %02d: 0x%08x 0x%08x 0x%08x 0x%08x",
+			dev->config->name, i, lut[0], lut[1], lut[2], lut[3]);
+		lut += 4;
+	}
+
+	u8_t reg[3];
+	status_t status;
+
+	status = flexspi_nor_flash_get_reg(drv_data->base, drv_data->port,
+		NOR_CMD_LUT_SEQ_IDX_READJEDECID, reg, 3);
+	if (status != kStatus_Success) {
+		LOG_WRN("Reading JEDEC ID failed (0x%x)", status);
+	} else {
+		LOG_DBG("JEDEC ID %02x %02x %02x",
+			reg[0], reg[1], reg[2]);
+	}
+
+	status = flexspi_nor_flash_get_reg(drv_data->base, drv_data->port,
+		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG1, reg, 1);
+	if (status != kStatus_Success) {
+		LOG_WRN("Reading status register 1 failed (0x%x)", status);
+	} else {
+		LOG_DBG("Status register 1 0x%02x", reg[0]);
+	}
+
+	status = flexspi_nor_flash_get_reg(drv_data->base, drv_data->port,
+		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG2, reg, 1);
+	if (status != kStatus_Success) {
+		LOG_WRN("Reading status register 2 failed (0x%x)", status);
+	} else {
+		LOG_DBG("Status register 2 0x%02x", reg[0]);
+	}
+
+	status = flexspi_nor_flash_get_reg(drv_data->base, drv_data->port,
+		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG3, reg, 1);
+	if (status != kStatus_Success) {
+		LOG_WRN("Reading status register 3 failed (0x%x)", status);
+	} else {
+		LOG_DBG("Status register 3 0x%02x", reg[0]);
+	}
+#endif
 
 	return 0;
 }
