@@ -12,12 +12,15 @@
 #include <fsl_flexspi.h>
 #include <drivers/flash.h>
 
-struct flexspi_flash_data {
+struct flexspi_nor_flash_dev_data {
+#if defined(CONFIG_MULTITHREADING)
+	struct k_sem wr_er_lock;
+#endif
+};
+
+struct flexspi_nor_flash_dev_config {
 	FLEXSPI_Type *base;
 	flexspi_port_t port;
-// #if defined(CONFIG_MULTITHREADING)
-// 	struct k_sem write_lock;
-// #endif
 };
 
 status_t flexspi_nor_flash_wait_bus_busy(FLEXSPI_Type *base,

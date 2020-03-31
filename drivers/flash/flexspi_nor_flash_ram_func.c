@@ -174,7 +174,8 @@ static status_t flexspi_nor_flash_get_reg(FLEXSPI_Type *base,
 
 static int flexspi_nor_flash_sector_erase(struct device *dev, off_t offset)
 {
-	struct flexspi_flash_data *drv_data = dev->driver_data;
+	const struct flexspi_nor_flash_dev_config *dev_cfg =
+		dev->config->config_info;
 	flexspi_transfer_t flashXfer;
 	status_t status;
 	int retval = 0;
@@ -183,19 +184,18 @@ static int flexspi_nor_flash_sector_erase(struct device *dev, off_t offset)
 	unsigned int key = irq_lock();
 
 	flashXfer.deviceAddress = offset;
-	flashXfer.port          = drv_data->port;
+	flashXfer.port          = dev_cfg->port;
 	flashXfer.cmdType       = kFLEXSPI_Command;
 	flashXfer.SeqNumber     = 1;
 	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_ERASESECTOR;
 
-	status = FLEXSPI_TransferBlocking(drv_data->base, &flashXfer);
+	status = FLEXSPI_TransferBlocking(dev_cfg->base, &flashXfer);
 	if (status != kStatus_Success) {
 		retval = -EIO;
 		goto done;
 	}
 
-	status = flexspi_nor_flash_wait_bus_busy(drv_data->base,
-						 drv_data->port);
+	status = flexspi_nor_flash_wait_bus_busy(dev_cfg->base, dev_cfg->port);
 	if (status != kStatus_Success) {
 		retval = -EIO;
 		goto done;
@@ -251,7 +251,8 @@ int flexspi_nor_flash_erase(struct device *dev, off_t offset, size_t len)
 static int flexspi_nor_flash_page_program(struct device *dev, off_t offset,
 					  const void *data, size_t len)
 {
-	struct flexspi_flash_data *drv_data = dev->driver_data;
+	const struct flexspi_nor_flash_dev_config *dev_cfg =
+		dev->config->config_info;
 	flexspi_transfer_t flashXfer;
 	status_t status;
 	int retval = 0;
@@ -260,21 +261,20 @@ static int flexspi_nor_flash_page_program(struct device *dev, off_t offset,
 	unsigned int key = irq_lock();
 
 	flashXfer.deviceAddress = offset;
-	flashXfer.port          = drv_data->port;
+	flashXfer.port          = dev_cfg->port;
 	flashXfer.cmdType       = kFLEXSPI_Write;
 	flashXfer.SeqNumber     = 1;
 	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_PAGEPROGRAM_QUAD;
 	flashXfer.data          = (void *)data;
 	flashXfer.dataSize      = len;
 
-	status = FLEXSPI_TransferBlocking(drv_data->base, &flashXfer);
+	status = FLEXSPI_TransferBlocking(dev_cfg->base, &flashXfer);
 	if (status != kStatus_Success) {
 		retval = -EIO;
 		goto done;
 	}
 
-	status = flexspi_nor_flash_wait_bus_busy(drv_data->base,
-						 drv_data->port);
+	status = flexspi_nor_flash_wait_bus_busy(dev_cfg->base, dev_cfg->port);
 	if (status != kStatus_Success) {
 		retval = -EIO;
 		goto done;
@@ -341,11 +341,12 @@ int flexspi_nor_flash_write(struct device *dev, off_t offset,
 /* TODO: Verify if it is actually required to have this function in RAM */
 int flexspi_nor_flash_init(struct device *dev)
 {
-	struct flexspi_flash_data *drv_data = dev->driver_data;
+	const struct flexspi_nor_flash_dev_config *dev_cfg =
+		dev->config->config_info;
 
-	FLEXSPI_UpdateLUT(drv_data->base, 0, w25q128LUT, W25Q128_LUT_LENGTH);
+	FLEXSPI_UpdateLUT(dev_cfg->base, 0, w25q128LUT, W25Q128_LUT_LENGTH);
 
-	FLEXSPI_SoftwareReset(drv_data->base);
+	FLEXSPI_SoftwareReset(dev_cfg->base);
 
 #if CONFIG_FLASH_LOG_LEVEL >= 4
 	volatile u32_t *lut = drv_data->base->LUT;
@@ -359,7 +360,7 @@ int flexspi_nor_flash_init(struct device *dev)
 	u8_t reg[3];
 	status_t status;
 
-	status = flexspi_nor_flash_get_reg(drv_data->base, drv_data->port,
+	status = flexspi_nor_flash_get_reg(dev_cfg->base, dev_cfg->port,
 		NOR_CMD_LUT_SEQ_IDX_READJEDECID, reg, 3);
 	if (status != kStatus_Success) {
 		LOG_WRN("Reading JEDEC ID failed (0x%x)", status);
@@ -368,7 +369,7 @@ int flexspi_nor_flash_init(struct device *dev)
 			reg[0], reg[1], reg[2]);
 	}
 
-	status = flexspi_nor_flash_get_reg(drv_data->base, drv_data->port,
+	status = flexspi_nor_flash_get_reg(dev_cfg->base, dev_cfg->port,
 		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG1, reg, 1);
 	if (status != kStatus_Success) {
 		LOG_WRN("Reading status register 1 failed (0x%x)", status);
@@ -376,7 +377,7 @@ int flexspi_nor_flash_init(struct device *dev)
 		LOG_DBG("Status register 1 0x%02x", reg[0]);
 	}
 
-	status = flexspi_nor_flash_get_reg(drv_data->base, drv_data->port,
+	status = flexspi_nor_flash_get_reg(dev_cfg->base, dev_cfg->port,
 		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG2, reg, 1);
 	if (status != kStatus_Success) {
 		LOG_WRN("Reading status register 2 failed (0x%x)", status);
@@ -384,7 +385,7 @@ int flexspi_nor_flash_init(struct device *dev)
 		LOG_DBG("Status register 2 0x%02x", reg[0]);
 	}
 
-	status = flexspi_nor_flash_get_reg(drv_data->base, drv_data->port,
+	status = flexspi_nor_flash_get_reg(dev_cfg->base, dev_cfg->port,
 		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG3, reg, 1);
 	if (status != kStatus_Success) {
 		LOG_WRN("Reading status register 3 failed (0x%x)", status);

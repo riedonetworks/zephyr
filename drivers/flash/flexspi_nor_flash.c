@@ -12,6 +12,10 @@
 
 #include "flexspi_nor_flash.h"
 
+#if defined(CONFIG_MULTITHREADING)
+#warning Multithreading not supported yet (proper locking is missing), use at your own risk!
+#endif
+
 /*******************************************************************************
  *  F L A S H   A P I
 *******************************************************************************/
@@ -19,19 +23,20 @@
 static int flexspi_nor_flash_read(struct device *dev, off_t offset,
 				  void *data, size_t len)
 {
-	struct flexspi_flash_data *drv_data = dev->driver_data;
+	const struct flexspi_nor_flash_dev_config *dev_cfg =
+		dev->config->config_info;
 	flexspi_transfer_t flashXfer;
 	status_t status;
 
 	flashXfer.deviceAddress = offset;
-	flashXfer.port          = drv_data->port;
+	flashXfer.port          = dev_cfg->port;
 	flashXfer.cmdType       = kFLEXSPI_Read;
 	flashXfer.SeqNumber     = 1;
 	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_READ_FAST_QUAD;
 	flashXfer.data          = data;
 	flashXfer.dataSize      = len;
 
-	status = FLEXSPI_TransferBlocking(drv_data->base, &flashXfer);
+	status = FLEXSPI_TransferBlocking(dev_cfg->base, &flashXfer);
 	if (status != kStatus_Success) {
 		return -EIO;
 	}
@@ -48,17 +53,18 @@ int flexspi_nor_flash_write_protection_set(struct device *dev, bool enable)
 		return 0;
 	}
 
-	struct flexspi_flash_data *drv_data = dev->driver_data;
+	const struct flexspi_nor_flash_dev_config *dev_cfg =
+		dev->config->config_info;
 	flexspi_transfer_t flashXfer;
 	status_t status;
 
 	flashXfer.deviceAddress = 0; // TODO Figure out if this can be left to unknown
-	flashXfer.port          = drv_data->port;
+	flashXfer.port          = dev_cfg->port;
 	flashXfer.cmdType       = kFLEXSPI_Command;
 	flashXfer.SeqNumber     = 1;
 	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_WRITEENABLE;
 
-	status = FLEXSPI_TransferBlocking(drv_data->base, &flashXfer);
+	status = FLEXSPI_TransferBlocking(dev_cfg->base, &flashXfer);
 	if (status != kStatus_Success) {
 		return -EIO;
 	}
@@ -96,7 +102,9 @@ static const struct flash_driver_api flexspi_nor_flash_api = {
 	.write_block_size = 1,
 };
 
-static struct flexspi_flash_data flexspi_flash_priv_data = {
+static struct flexspi_nor_flash_dev_data flash_dev_data;
+
+static const struct flexspi_nor_flash_dev_config flash_dev_config = {
 	.base = FLEXSPI,         /* FIXME - Get from DTS */
 	.port = kFLEXSPI_PortA1, /* FIXME - Get from DTS */
 };
@@ -104,10 +112,10 @@ static struct flexspi_flash_data flexspi_flash_priv_data = {
 DEVICE_AND_API_INIT(flexspi_nor_flash,
 		    /* TODO This must be configured at compile time based
 		       on DTS. */
-		    DT_NXP_IMX_FLEXSPI_402A8000_LABEL,
+		    DT_INST_0_FLEXSPI_NOR_FLASH_LABEL,
 		    &flexspi_nor_flash_init,
-		    &flexspi_flash_priv_data,
-		    NULL, /* TODO: See if we need this -> cfg_info */
+		    &flash_dev_data,
+		    &flash_dev_config,
 		    POST_KERNEL,
 		    CONFIG_FLEXSPI_NOR_FLASH_INIT_PRIORITY,
 		    &flexspi_nor_flash_api);
