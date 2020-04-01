@@ -90,18 +90,21 @@ static const u32_t w25q256LUT[W25Q256_LUT_LENGTH] = {
 #error SPI access mode not supported by FlexSPI winbond W25Q128 driver
 #endif
 
+#define NB_SECTOR    (8U * 1024U)
+#define SECTOR_SIZE  (4U * 1024U)
+
 static const struct flexspi_nor_flash_dev_config w25q256_config = {
 	.bus_name   = DT_INST_0_FLEXSPI_WINBOND_W25Q256_BUS_NAME,
-	.port      = DT_INST_0_FLEXSPI_WINBOND_W25Q256_BASE_ADDRESS,
-	.size      = 32U * 1024U * 1024U,
-	.page_size = 256U,
+	.port       = DT_INST_0_FLEXSPI_WINBOND_W25Q256_BASE_ADDRESS,
+	.size       = NB_SECTOR * SECTOR_SIZE,
+	.page_size  = 256U,
 	.lut        = w25q256LUT,
 	.lut_length = W25Q256_LUT_LENGTH,
 #if defined(CONFIG_FLASH_PAGE_LAYOUT)
 	.pages_layout = {
-		/* "page" means the smallest erasable area on the flash device */
-		.pages_count = 8 * 1024,  /* sectors */
-		.pages_size  = 4 * 1024,  /* of 4 kiB */
+		/* "page" means the smallest erasable area */
+		.pages_count = NB_SECTOR,
+		.pages_size  = SECTOR_SIZE,
 	},
 #endif /* CONFIG_FLASH_PAGE_LAYOUT */
 };
