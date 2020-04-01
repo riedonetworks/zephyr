@@ -19,13 +19,14 @@
 #define SPI_ACCESS_MODE_QPI    3
 
 struct flexspi_nor_flash_dev_data {
+	FLEXSPI_Type *base;	/*!< Base address of the FlexSPI controller. */
 #if defined(CONFIG_MULTITHREADING)
 	struct k_sem wr_er_lock;
 #endif
 };
 
 struct flexspi_nor_flash_dev_config {
-	FLEXSPI_Type *base;	/*!< Base address of the FlexSPI controller. */
+	const char *bus_name;	/*!< Name of the parent bus (for device_get_binding). */
 	flexspi_port_t port;	/*!< Port on which the device is connected. */
 	size_t size;		/*!< Size of the flash device in bytes. */
 	size_t page_size;	/*!< Max data size in bytes for "page program" command. */

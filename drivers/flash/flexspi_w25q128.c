@@ -90,7 +90,7 @@ static const u32_t w25q128LUT[W25Q128_LUT_LENGTH] = {
 #endif
 
 static const struct flexspi_nor_flash_dev_config w25q128_config = {
-	.base       = FLEXSPI,         /* FIXME - Get from DTS */
+	.bus_name   = DT_INST_0_FLEXSPI_WINBOND_W25Q128_BUS_NAME,
 	.port       = DT_INST_0_FLEXSPI_WINBOND_W25Q128_BASE_ADDRESS,
 	.size       = 16U * 1024U * 1024U,
 	.page_size  = 256U,

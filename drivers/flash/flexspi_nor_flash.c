@@ -25,6 +25,7 @@ int flexspi_nor_flash_read(struct device *dev, off_t offset,
 {
 	const struct flexspi_nor_flash_dev_config *dev_cfg =
 		dev->config->config_info;
+	struct flexspi_nor_flash_dev_data *dev_data = dev->driver_data;
 	flexspi_transfer_t flashXfer;
 	status_t status;
 
@@ -36,7 +37,7 @@ int flexspi_nor_flash_read(struct device *dev, off_t offset,
 	flashXfer.data          = data;
 	flashXfer.dataSize      = len;
 
-	status = FLEXSPI_TransferBlocking(dev_cfg->base, &flashXfer);
+	status = FLEXSPI_TransferBlocking(dev_data->base, &flashXfer);
 	if (status != kStatus_Success) {
 		return -EIO;
 	}
@@ -55,6 +56,7 @@ int flexspi_nor_flash_write_protection_set(struct device *dev, bool enable)
 
 	const struct flexspi_nor_flash_dev_config *dev_cfg =
 		dev->config->config_info;
+	struct flexspi_nor_flash_dev_data *dev_data = dev->driver_data;
 	flexspi_transfer_t flashXfer;
 	status_t status;
 
@@ -64,7 +66,7 @@ int flexspi_nor_flash_write_protection_set(struct device *dev, bool enable)
 	flashXfer.SeqNumber     = 1;
 	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_WRITEENABLE;
 
-	status = FLEXSPI_TransferBlocking(dev_cfg->base, &flashXfer);
+	status = FLEXSPI_TransferBlocking(dev_data->base, &flashXfer);
 	if (status != kStatus_Success) {
 		return -EIO;
 	}
@@ -86,4 +88,3 @@ void flexspi_nor_flash_pages_layout(
 	*layout_size = 1;
 }
 #endif /* CONFIG_FLASH_PAGE_LAYOUT */
-
