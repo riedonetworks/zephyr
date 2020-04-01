@@ -263,11 +263,19 @@ int flexspi_nor_flash_write(struct device *dev, off_t offset,
 /* TODO: Verify if it is actually required to have this function in RAM. */
 int flexspi_nor_flash_init(struct device *dev)
 {
+	static bool lut_configured = false;
+
 	const struct flexspi_nor_flash_dev_config *dev_cfg =
 		dev->config->config_info;
 
+	if (lut_configured) {
+		LOG_ERR("FlexSPI LUT cannot be reconfigured");
+		return -EPERM;
+	}
+
 	/* TODO: Allow configuring the LUT for more than one device. */
 	FLEXSPI_UpdateLUT(dev_cfg->base, 0, dev_cfg->lut, dev_cfg->lut_length);
+	lut_configured = true;
 
 	FLEXSPI_SoftwareReset(dev_cfg->base);
 
