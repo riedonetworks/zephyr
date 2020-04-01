@@ -18,10 +18,10 @@
 
 /*******************************************************************************
  *  F L A S H   A P I
-*******************************************************************************/
+ ******************************************************************************/
 
-static int flexspi_nor_flash_read(struct device *dev, off_t offset,
-				  void *data, size_t len)
+int flexspi_nor_flash_read(struct device *dev, off_t offset,
+			   void *data, size_t len)
 {
 	const struct flexspi_nor_flash_dev_config *dev_cfg =
 		dev->config->config_info;
@@ -32,7 +32,7 @@ static int flexspi_nor_flash_read(struct device *dev, off_t offset,
 	flashXfer.port          = dev_cfg->port;
 	flashXfer.cmdType       = kFLEXSPI_Read;
 	flashXfer.SeqNumber     = 1;
-	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_READ_FAST_QUAD;
+	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_READ;
 	flashXfer.data          = data;
 	flashXfer.dataSize      = len;
 
@@ -73,49 +73,17 @@ int flexspi_nor_flash_write_protection_set(struct device *dev, bool enable)
 }
 
 #if defined(CONFIG_FLASH_PAGE_LAYOUT)
-/* FIXME: Valid for W25Q128 only, get it from DTS */
-static const struct flash_pages_layout dev_layout = {
-	/* "page" means the smallest erasable area on the flash device */
-	.pages_count = 4 * 1024,  /* sectors */
-	.pages_size  = 4 * 1024,  /* of 4 kiB */
-};
-
-static void flexspi_nor_flash_pages_layout(
+void flexspi_nor_flash_pages_layout(
 	struct device *dev,
 	const struct flash_pages_layout **layout,
 	size_t *layout_size
 )
 {
+	const struct flexspi_nor_flash_dev_config *dev_cfg =
+		dev->config->config_info;
+
+	*layout = &dev_cfg->pages_layout;
 	*layout_size = 1;
-	*layout = &dev_layout;
 }
 #endif /* CONFIG_FLASH_PAGE_LAYOUT */
 
-static const struct flash_driver_api flexspi_nor_flash_api = {
-	.read = flexspi_nor_flash_read,
-	.write = flexspi_nor_flash_write,
-	.erase = flexspi_nor_flash_erase,
-	.write_protection = flexspi_nor_flash_write_protection_set,
-#if defined(CONFIG_FLASH_PAGE_LAYOUT)
-	.page_layout = flexspi_nor_flash_pages_layout,
-#endif /* CONFIG_FLASH_PAGE_LAYOUT */
-	.write_block_size = 1,
-};
-
-static struct flexspi_nor_flash_dev_data flash_dev_data;
-
-static const struct flexspi_nor_flash_dev_config flash_dev_config = {
-	.base = FLEXSPI,         /* FIXME - Get from DTS */
-	.port = kFLEXSPI_PortA1, /* FIXME - Get from DTS */
-};
-
-DEVICE_AND_API_INIT(flexspi_nor_flash,
-		    /* TODO This must be configured at compile time based
-		       on DTS. */
-		    DT_INST_0_FLEXSPI_NOR_FLASH_LABEL,
-		    &flexspi_nor_flash_init,
-		    &flash_dev_data,
-		    &flash_dev_config,
-		    POST_KERNEL,
-		    CONFIG_FLEXSPI_NOR_FLASH_INIT_PRIORITY,
-		    &flexspi_nor_flash_api);

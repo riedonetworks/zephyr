@@ -22,88 +22,8 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #endif
 
 /*******************************************************************************
- * Winbond W25Q128 LUT
- ******************************************************************************/
-
-#define W25Q128_LUT_LENGTH (8 * 4)
-
-static const uint32_t w25q128LUT[W25Q128_LUT_LENGTH] = {
-	/* Fast read quad mode - SDR */
-	[4 * NOR_CMD_LUT_SEQ_IDX_READ_FAST_QUAD] = FLEXSPI_LUT_SEQ(
-		kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0xEB,
-		kFLEXSPI_Command_RADDR_SDR, kFLEXSPI_4PAD, 0x18
-	),
-	[4 * NOR_CMD_LUT_SEQ_IDX_READ_FAST_QUAD + 1] = FLEXSPI_LUT_SEQ(
-		kFLEXSPI_Command_DUMMY_SDR, kFLEXSPI_4PAD, 0x06,
-		kFLEXSPI_Command_READ_SDR, kFLEXSPI_4PAD, 0x04
-	),
-
-	/* Write Enable */
-	[4 * NOR_CMD_LUT_SEQ_IDX_WRITEENABLE] = FLEXSPI_LUT_SEQ(
-		kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x06,
-		kFLEXSPI_Command_STOP, 0, 0
-	),
-
-	/* Erase Sector */
-	[4 * NOR_CMD_LUT_SEQ_IDX_ERASESECTOR] = FLEXSPI_LUT_SEQ(
-		kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x20,
-		kFLEXSPI_Command_RADDR_SDR, kFLEXSPI_1PAD, 0x18
-	),
-
-	/* Page Program - quad mode */
-	[4 * NOR_CMD_LUT_SEQ_IDX_PAGEPROGRAM_QUAD] = FLEXSPI_LUT_SEQ(
-		kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x32,
-		kFLEXSPI_Command_RADDR_SDR, kFLEXSPI_1PAD, 0x18
-	),
-	[4 * NOR_CMD_LUT_SEQ_IDX_PAGEPROGRAM_QUAD + 1] = FLEXSPI_LUT_SEQ(
-		kFLEXSPI_Command_WRITE_SDR, kFLEXSPI_4PAD, 0x04,
-		kFLEXSPI_Command_STOP, 0, 0
-	),
-
-	/* Read JEDEC ID */
-	[4 * NOR_CMD_LUT_SEQ_IDX_READJEDECID] = FLEXSPI_LUT_SEQ(
-		kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x9F,
-		kFLEXSPI_Command_READ_SDR, kFLEXSPI_1PAD, 0x04
-	),
-
-	/* Read status register 1 */
-	[4 * NOR_CMD_LUT_SEQ_IDX_READSTATUSREG1] = FLEXSPI_LUT_SEQ(
-		kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x05,
-		kFLEXSPI_Command_READ_SDR, kFLEXSPI_1PAD, 0x04
-	),
-
-	/* Read status register 2 */
-	[4 * NOR_CMD_LUT_SEQ_IDX_READSTATUSREG2] = FLEXSPI_LUT_SEQ(
-		kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x35,
-		kFLEXSPI_Command_READ_SDR, kFLEXSPI_1PAD, 0x04
-	),
-
-	/* Read status register 3 */
-	[4 * NOR_CMD_LUT_SEQ_IDX_READSTATUSREG3] = FLEXSPI_LUT_SEQ(
-		kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x15,
-		kFLEXSPI_Command_READ_SDR, kFLEXSPI_1PAD, 0x04
-	),
-
-	/* Read sector lock status */
-	// [4 * NOR_CMD_LUT_SEQ_IDX_READSECTORLOCK] = FLEXSPI_LUT_SEQ(
-	// 	kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x3D,
-	// 	kFLEXSPI_Command_RADDR_SDR, kFLEXSPI_1PAD, 0x18
-	// ),
-	// [4 * NOR_CMD_LUT_SEQ_IDX_READSECTORLOCK + 1] = FLEXSPI_LUT_SEQ(
-	// 	kFLEXSPI_Command_READ_SDR, kFLEXSPI_1PAD, 0x04,
-	// 	kFLEXSPI_Command_STOP, 0, 0
-	// ),
-
-	/* Global Block/Sector Unlock */
-	// [4 * NOR_CMD_LUT_SEQ_IDX_GLOBALSECTORUNLOCK] = FLEXSPI_LUT_SEQ(
-	// 	kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x98,
-	// 	kFLEXSPI_Command_STOP, 0, 0
-	// ),
-};
-
-/*******************************************************************************
  *  H E L P E R S
-*******************************************************************************/
+ ******************************************************************************/
 
 #define REG_STATUS_BIT_BUSY 1U
 
@@ -119,7 +39,7 @@ status_t flexspi_nor_flash_wait_bus_busy(FLEXSPI_Type *base,
 	flashXfer.port          = port;
 	flashXfer.cmdType       = kFLEXSPI_Read;
 	flashXfer.SeqNumber     = 1;
-	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_READSTATUSREG1;
+	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_READSTATUSREG;
 	flashXfer.data          = &reg;
 	flashXfer.dataSize      = 1;
 
@@ -166,11 +86,7 @@ static status_t flexspi_nor_flash_get_reg(FLEXSPI_Type *base,
 
 /*******************************************************************************
  *  F L A S H   A P I
-*******************************************************************************/
-
-/* FIXME: Get it from DTS or page_layout */
-#define SECTOR_SIZE 4096U
-#define SECTOR_MASK (4096U - 1U)
+ ******************************************************************************/
 
 static int flexspi_nor_flash_sector_erase(struct device *dev, off_t offset)
 {
@@ -209,6 +125,11 @@ done:
 
 int flexspi_nor_flash_erase(struct device *dev, off_t offset, size_t len)
 {
+	const struct flexspi_nor_flash_dev_config *dev_cfg =
+		dev->config->config_info;
+	const size_t SECTOR_SIZE = dev_cfg->pages_layout.pages_size;
+	const size_t SECTOR_MASK = SECTOR_SIZE - 1U;
+
 	// /* Offset must be between 0 and flash size */
 	// if ((offset < 0) || ((offset + size) > <FLASH SIZE>)) {
 	// 	return -ENODEV;
@@ -219,8 +140,8 @@ int flexspi_nor_flash_erase(struct device *dev, off_t offset, size_t len)
 		return -EINVAL;
 	}
 
-	// TODO: Improve performance by using block erase 32 kiB ot 64 kiB
-	//       when len is big enough.
+	/* TODO: Improve performance by using block erase 32 kiB ot 64 kiB
+	         when len is big enough. */
 
 	off_t sector;
 	int retval;
@@ -244,10 +165,6 @@ int flexspi_nor_flash_erase(struct device *dev, off_t offset, size_t len)
 	return flexspi_nor_flash_sector_erase(dev, sector);
 }
 
-/* FIXME: Get it from DTS */
-#define PAGE_SIZE 256U
-#define PAGE_MASK (256U - 1U)
-
 static int flexspi_nor_flash_page_program(struct device *dev, off_t offset,
 					  const void *data, size_t len)
 {
@@ -264,7 +181,7 @@ static int flexspi_nor_flash_page_program(struct device *dev, off_t offset,
 	flashXfer.port          = dev_cfg->port;
 	flashXfer.cmdType       = kFLEXSPI_Write;
 	flashXfer.SeqNumber     = 1;
-	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_PAGEPROGRAM_QUAD;
+	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_PAGEPROGRAM;
 	flashXfer.data          = (void *)data;
 	flashXfer.dataSize      = len;
 
@@ -289,6 +206,11 @@ done:
 int flexspi_nor_flash_write(struct device *dev, off_t offset,
 			    const void *data, size_t len)
 {
+	const struct flexspi_nor_flash_dev_config *dev_cfg =
+		dev->config->config_info;
+	const size_t PAGE_SIZE = dev_cfg->page_size;
+	const size_t PAGE_MASK = PAGE_SIZE - 1U;
+
 	// /* Offset must be between 0 and flash size */
 	// if ((offset < 0) || ((offset + size) > <FLASH SIZE>)) {
 	// 	return -ENODEV;
@@ -336,20 +258,23 @@ int flexspi_nor_flash_write(struct device *dev, off_t offset,
 
 /*******************************************************************************
  *  I N I T
-*******************************************************************************/
+ ******************************************************************************/
 
-/* TODO: Verify if it is actually required to have this function in RAM */
+/* TODO: Verify if it is actually required to have this function in RAM. */
 int flexspi_nor_flash_init(struct device *dev)
 {
 	const struct flexspi_nor_flash_dev_config *dev_cfg =
 		dev->config->config_info;
 
-	FLEXSPI_UpdateLUT(dev_cfg->base, 0, w25q128LUT, W25Q128_LUT_LENGTH);
+	/* TODO: Allow configuring the LUT for more than one device. */
+	FLEXSPI_UpdateLUT(dev_cfg->base, 0, dev_cfg->lut, dev_cfg->lut_length);
 
 	FLEXSPI_SoftwareReset(dev_cfg->base);
 
+	/* TODO: Return -ENODEV if JEDEC ID is not the same as in DTS. */
+
 #if CONFIG_FLASH_LOG_LEVEL >= 4
-	volatile u32_t *lut = drv_data->base->LUT;
+	volatile u32_t *lut = dev_cfg->base->LUT;
 
 	for (size_t i = 0; i < 16; i++) {
 		LOG_DBG("%s LUT %02d: 0x%08x 0x%08x 0x%08x 0x%08x",
@@ -370,7 +295,7 @@ int flexspi_nor_flash_init(struct device *dev)
 	}
 
 	status = flexspi_nor_flash_get_reg(dev_cfg->base, dev_cfg->port,
-		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG1, reg, 1);
+		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG, reg, 1);
 	if (status != kStatus_Success) {
 		LOG_WRN("Reading status register 1 failed (0x%x)", status);
 	} else {
