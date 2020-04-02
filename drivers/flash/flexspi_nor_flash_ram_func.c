@@ -98,6 +98,9 @@ static int flexspi_nor_flash_sector_erase(struct device *dev, off_t offset)
 	status_t status;
 	int retval = 0;
 
+	__ASSERT((offset & (dev_cfg->pages_layout.pages_size - 1U)) == 0,
+		 "Offset not on sector boundary");
+
 	k_sched_lock();
 	unsigned int key = irq_lock();
 
@@ -132,10 +135,10 @@ int flexspi_nor_flash_erase(struct device *dev, off_t offset, size_t len)
 	const size_t SECTOR_SIZE = dev_cfg->pages_layout.pages_size;
 	const size_t SECTOR_MASK = SECTOR_SIZE - 1U;
 
-	// /* Offset must be between 0 and flash size */
-	// if ((offset < 0) || ((offset + size) > <FLASH SIZE>)) {
-	// 	return -ENODEV;
-	// }
+	/* Prevent erasing outside of the flash */
+	if ((offset < 0) || ((offset + len) > dev_cfg->size)) {
+		return -ENODEV;
+	}
 
 	/* Can only erase full sector(s) */
 	if ((offset & SECTOR_MASK) || (len & SECTOR_MASK)) {
@@ -177,6 +180,8 @@ static int flexspi_nor_flash_page_program(struct device *dev, off_t offset,
 	status_t status;
 	int retval = 0;
 
+	__ASSERT(len <= dev_cfg->page_size, "Length is above page size");
+
 	k_sched_lock();
 	unsigned int key = irq_lock();
 
@@ -214,15 +219,10 @@ int flexspi_nor_flash_write(struct device *dev, off_t offset,
 	const size_t PAGE_SIZE = dev_cfg->page_size;
 	const size_t PAGE_MASK = PAGE_SIZE - 1U;
 
-	// /* Offset must be between 0 and flash size */
-	// if ((offset < 0) || ((offset + size) > <FLASH SIZE>)) {
-	// 	return -ENODEV;
-	// }
-
-	// /* Offset + len must not exceed flash size */
-	// if (offset + len > <FLASH SIZE>)
-	// 	return -EINVAL;
-	// }
+	/* Prevent writing outside of the flash */
+	if ((offset < 0) || ((offset + len) > dev_cfg->size)) {
+		return -ENODEV;
+	}
 
 	/* Cast data  to prevent  void * arithmetic */
 	const u8_t *data_ptr = data;

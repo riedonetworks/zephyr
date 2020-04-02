@@ -29,6 +29,11 @@ int flexspi_nor_flash_read(struct device *dev, off_t offset,
 	flexspi_transfer_t flashXfer;
 	status_t status;
 
+	/* Prevent reading outside of the flash */
+	if ((offset < 0) || ((offset + len) > dev_cfg->size)) {
+		return -ENODEV;
+	}
+
 	flashXfer.deviceAddress = offset;
 	flashXfer.port          = dev_cfg->port;
 	flashXfer.cmdType       = kFLEXSPI_Read;
