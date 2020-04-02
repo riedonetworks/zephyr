@@ -68,22 +68,6 @@ static const u32_t w25q128LUT[W25Q128_LUT_LENGTH] = {
 		kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x15,
 		kFLEXSPI_Command_READ_SDR, kFLEXSPI_1PAD, 0x04
 	),
-
-	/* Read sector lock status */
-	// [4 * NOR_CMD_LUT_SEQ_IDX_READSECTORLOCK] = FLEXSPI_LUT_SEQ(
-	// 	kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x3D,
-	// 	kFLEXSPI_Command_RADDR_SDR, kFLEXSPI_1PAD, 0x18
-	// ),
-	// [4 * NOR_CMD_LUT_SEQ_IDX_READSECTORLOCK + 1] = FLEXSPI_LUT_SEQ(
-	// 	kFLEXSPI_Command_READ_SDR, kFLEXSPI_1PAD, 0x04,
-	// 	kFLEXSPI_Command_STOP, 0, 0
-	// ),
-
-	/* Global Block/Sector Unlock */
-	// [4 * NOR_CMD_LUT_SEQ_IDX_GLOBALSECTORUNLOCK] = FLEXSPI_LUT_SEQ(
-	// 	kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0x98,
-	// 	kFLEXSPI_Command_STOP, 0, 0
-	// ),
 };
 #else
 #error SPI access mode not supported by FlexSPI winbond W25Q128 driver
