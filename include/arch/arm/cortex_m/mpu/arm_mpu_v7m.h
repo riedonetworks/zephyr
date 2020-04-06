@@ -110,11 +110,19 @@
 #define REGION_4G       REGION_SIZE(4GB)
 
 /* Some helper defines for common regions */
+#if defined(CONFIG_CODE_DATA_RELOCATION)
+#define REGION_RAM_ATTR(size) \
+{ \
+	(NORMAL_OUTER_INNER_WRITE_BACK_WRITE_READ_ALLOCATE_NON_SHAREABLE | \
+	 size | P_RW_U_NA_Msk) \
+}
+#else
 #define REGION_RAM_ATTR(size) \
 { \
 	(NORMAL_OUTER_INNER_WRITE_BACK_WRITE_READ_ALLOCATE_NON_SHAREABLE | \
 	 MPU_RASR_XN_Msk | size | P_RW_U_NA_Msk) \
 }
+#endif
 #if defined(CONFIG_MPU_ALLOW_FLASH_WRITE)
 #define REGION_FLASH_ATTR(size) \
 { \
