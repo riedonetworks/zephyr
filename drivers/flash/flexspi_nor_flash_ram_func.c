@@ -17,7 +17,7 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
-#if !defined(CONFIG_CODE_DATA_RELOCATION)
+#if !defined(CONFIG_CODE_DATA_RELOCATION) && !defined(CONFIG_BOOTLOADER_MCUBOOT)
 #error CONFIG_CODE_DATA_RELOCATION must be enable to use FLEXSPI_NOR_FLASH.
 #endif
 
