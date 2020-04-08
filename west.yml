@@ -69,6 +69,9 @@ manifest:
     - name: littlefs
       path: modules/fs/littlefs
       revision: fe9572dd5a9fcf93a249daa4233012692bd2881d
+    - name: mcuboot
+      revision: ac55554059147fff718015be9f4bd3108123f50a
+      path: bootloader/mcuboot
 
   self:
     path: zephyr
