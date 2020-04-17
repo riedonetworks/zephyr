@@ -8,7 +8,6 @@
 
 menuconfig ILI9340
 	bool "ILI9340 display driver"
-	#depends on SPI
 	help
 	Enable driver for ILI9340 display driver.
 
@@ -31,7 +30,6 @@ config ILI9340_LCD_WINSTAR_WF24LTYAJDNN0
 
 config ILI9340_LCD_TIANMA_TM024HDH49
 	bool "Tianma TM024HDH49"
-
 
 endchoice
 
@@ -56,11 +54,19 @@ choice ILI9340_IFACE
 
 config ILI9340_SPI
 	bool "SPI"
+	depends on SPI
 
 config ILI9340_PARALLEL
 	bool "8bit 8080 parallel interface (CS/WRX/RDX/DCX)"
 
 endchoice
 
+config ILI9340_INIT_PRIORITY
+	int
+	default 90
+	help
+	  Device driver initialization priority.
+	  If device is connected to SPI bus, it has to
+	  be initialized after SPI driver.
 
 endif #ILI9340
