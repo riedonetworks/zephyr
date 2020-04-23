@@ -13,7 +13,7 @@ menuconfig FLEXSPI_NOR_FLASH
 if FLEXSPI_NOR_FLASH
 
 config FLEXSPI_NOR_FLASH_INIT_PRIORITY
-	int
+	int "Init priority"
 	default 80
 	help
 	  Device driver initialization priority.
