@@ -338,8 +338,8 @@ static int ili9340_write(const struct device *dev, const u16_t x,
 	u16_t write_h;
 
 	__ASSERT(desc->width <= desc->pitch, "Pitch is smaller then width");
-	__ASSERT((desc->pitch * ILI9340_RGB_SIZE * desc->height) <= desc->bu_size,
-			"Input buffer to small");
+	__ASSERT((desc->pitch * ILI9340_RGB_SIZE * desc->height) <= desc->buf_size,
+		 "Input buffer to small");
 
 	LOG_DBG("Writing %dx%d (w,h) @ %dx%d (x,y)", desc->width, desc->height,
 			x, y);

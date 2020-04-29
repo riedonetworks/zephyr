@@ -1089,6 +1089,7 @@ static void eth_mcux_error_isr(void *p)
 }
 #endif
 
+#if defined(CONFIG_ETH_MCUX_0)
 static void eth_0_config_func(void);
 
 static struct eth_context eth_0_context = {
@@ -1145,6 +1146,7 @@ static void eth_0_config_func(void)
 	irq_enable(DT_IRQ_ETH_IEEE1588_TMR);
 #endif
 }
+#endif /* CONFIG_ETH_MCUX_0 */
 
 #if defined(CONFIG_ETH_MCUX_1)
 static void eth_1_config_func(void);
