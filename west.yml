@@ -70,7 +70,7 @@ manifest:
       path: modules/fs/littlefs
       revision: fe9572dd5a9fcf93a249daa4233012692bd2881d
     - name: mcuboot
-      revision: 0edd12a67203101c651bad86a68e5ce8c680f889
+      revision: 4198391e67a1fb3f6c1823a3a25570544e8be7e0
       path: bootloader/mcuboot
 
   self:
