@@ -405,7 +405,7 @@ static int mcux_flexio_uart_tx(struct device *dev, const u8_t *buf, size_t len,
 	data->tx_xfer.data = (u8_t *)buf;
 	data->tx_xfer.dataSize = len;
 
-	LOG_DBG("%s: Sending %d bytes from %p", dev->config->name,
+	LOG_DBG("%s: Sending %d bytes from %p", log_strdup(dev->config->name),
 		data->tx_xfer.dataSize, data->tx_xfer.data
 		);
 
@@ -1056,14 +1056,14 @@ static int mcux_flexio_uart_init(struct device *dev)
 	}
 
 	// Tx Mux and handle
-	//LOG_DBG("%s: Assign source %d to channel %d", dev->config->name, config->tx_dma_source, config->tx_dma_channel);
+	LOG_DBG("%s: Assign source %d to channel %d", log_strdup(dev->config->name), config->tx_dma_source, config->tx_dma_channel);
 	DMAMUX_SetSource(DMAMUX, config->tx_dma_channel, config->tx_dma_source);
 	DMAMUX_EnableChannel(DMAMUX, config->tx_dma_channel);
 	EDMA_CreateHandle(&data->tx_dma_handle, DMA0, config->tx_dma_channel);
 	EDMA_SetCallback(&data->tx_dma_handle, mcux_flexio_uart_dma_tx_cb, data);
 
 	// Rx Mux and handle
-	//LOG_DBG("%s: Assign source %d to channel %d", dev->config->name, config->rx_dma_source, config->rx_dma_channel);
+	LOG_DBG("%s: Assign source %d to channel %d", log_strdup(dev->config->name), config->rx_dma_source, config->rx_dma_channel);
 	DMAMUX_SetSource(DMAMUX, config->rx_dma_channel, config->rx_dma_source);
 	DMAMUX_EnableChannel(DMAMUX, config->rx_dma_channel);
 	EDMA_CreateHandle(&data->rx_dma_handle, DMA0, config->rx_dma_channel);
