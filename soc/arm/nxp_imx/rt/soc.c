@@ -215,10 +215,15 @@ static ALWAYS_INLINE void clock_init(void)
 #endif
 
 	/* AZEN: Clock for the SEMC */
-	CLOCK_EnableClock(kCLOCK_Semc);
 	//CLOCK_EnableClock(kCLOCK_SemcExsc);
 	CLOCK_SetMux(kCLOCK_SemcMux, 1);
 	CLOCK_SetDiv(kCLOCK_SemcDiv, 1);
+	CLOCK_EnableClock(kCLOCK_Semc);
+
+	/* AZEN: Clock for the FlexSPI */
+	CLOCK_SetDiv(kCLOCK_Flexspi2Div, 7);
+    CLOCK_SetMux(kCLOCK_Flexspi2Mux, 2);
+	CLOCK_EnableClock(kCLOCK_FlexSpi2); // 132MHz
 
 	/* Keep the system clock running so SYSTICK can wake up the system from
 	 * wfi.
