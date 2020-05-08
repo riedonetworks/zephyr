@@ -81,7 +81,7 @@ static const struct flexspi_nor_flash_dev_config w25q256_config = {
 	.bus_name   = DT_INST_0_FLEXSPI_WINBOND_W25Q256_BUS_NAME,
 	.port       = DT_INST_0_FLEXSPI_WINBOND_W25Q256_BASE_ADDRESS,
 	.size       = NB_SECTOR * SECTOR_SIZE,
-	.page_size  = 256U,
+	.page_size  = DT_INST_0_FLEXSPI_WINBOND_W25Q256_PAGE_SIZE,
 	.lut        = w25q256LUT,
 	.lut_length = W25Q256_LUT_LENGTH,
 #if defined(CONFIG_FLASH_PAGE_LAYOUT)
