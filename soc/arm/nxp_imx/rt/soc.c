@@ -222,8 +222,8 @@ static ALWAYS_INLINE void clock_init(void)
 
 	/* AZEN: Clock for the FlexSPI */
 	CLOCK_SetMux(kCLOCK_Flexspi2Mux, 2); // Select USB1(PLL3) PFD0 = 246Mhz as clock source
-	CLOCK_SetDiv(kCLOCK_Flexspi2Div, 1);  // Divide by 2
-	CLOCK_EnableClock(kCLOCK_FlexSpi2); // =123MHz
+	CLOCK_SetDiv(kCLOCK_Flexspi2Div, 2);  // Divide by 3
+	CLOCK_EnableClock(kCLOCK_FlexSpi2); // =82MHz
 
 	/* Keep the system clock running so SYSTICK can wake up the system from
 	 * wfi.
