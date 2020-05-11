@@ -4,14 +4,53 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "flexspi_imx.h"
+#include <drivers/flexspi.h>
+
+struct flexspi_imx_config {
+	FLEXSPI_Type *base;	/*!< Base address of the FlexSPI controller. */
+};
+
+/*******************************************************************************
+ *  A P I
+ ******************************************************************************/
+
+void flexspi_imx_update_lut(struct device *dev, unsigned int index,
+			    const u32_t *cmd, unsigned int count)
+{
+	const struct flexspi_imx_config *dev_cfg = dev->config->config_info;
+
+	FLEXSPI_UpdateLUT(dev_cfg->base, index, cmd, count);
+}
+
+void flexspi_imx_sw_reset(struct device *dev)
+{
+	const struct flexspi_imx_config *dev_cfg = dev->config->config_info;
+
+	FLEXSPI_SoftwareReset(dev_cfg->base);
+}
+
+status_t flexspi_imx_xfer_blocking(struct device *dev,
+				   flexspi_transfer_t *xfer)
+{
+	const struct flexspi_imx_config *dev_cfg = dev->config->config_info;
+
+	return FLEXSPI_TransferBlocking(dev_cfg->base, xfer);
+}
+
+/*******************************************************************************
+ *  I N I T
+ ******************************************************************************/
 
 int flexspi_imx_init(struct device *dev)
 {
 	return 0;
 }
 
-static const struct flexspi_imx_api empty_api;
+static const struct flexspi_driver_api flexspi_imx_api = {
+	.update_lut = flexspi_imx_update_lut,
+	.sw_reset = flexspi_imx_sw_reset,
+	.xfer_blocking = flexspi_imx_xfer_blocking,
+};
 
 /*******************************************************************************
  * FlexSPI first controller
@@ -37,8 +76,8 @@ DEVICE_AND_API_INIT(flexspi0_controller,
 		    NULL,
 		    &flexspi0_config,
 		    POST_KERNEL,
-		    CONFIG_SPI_INIT_PRIORITY,
-		    &empty_api);
+		    CONFIG_FLEXSPI_INIT_PRIORITY,
+		    &flexspi_imx_api);
 
 #endif /* DT_INST_0_NXP_IMX_FLEXSPI */
 
@@ -66,7 +105,7 @@ DEVICE_AND_API_INIT(flexspi1_controller,
 		    NULL,
 		    &flexspi1_config,
 		    POST_KERNEL,
-		    CONFIG_SPI_INIT_PRIORITY,
-		    &empty_api);
+		    CONFIG_FLEXSPI_INIT_PRIORITY,
+		    &flexspi_imx_api);
 
 #endif /* DT_INST_1_NXP_IMX_FLEXSPI */
