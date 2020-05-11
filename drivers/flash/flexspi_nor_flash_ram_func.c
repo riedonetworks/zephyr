@@ -25,6 +25,39 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
  *  H E L P E R S
  ******************************************************************************/
 
+/**
+ * Mark the beginning of a critical section.
+ * @warning Calling this function disable all interrupts and scheduling.
+ *
+ * @param flexspi FlexSPI device driver handle.
+ * @return irq_lock key.
+ */
+static ALWAYS_INLINE unsigned int critical_section_enter(struct device *flexspi)
+{
+	unsigned int key;
+
+	k_sched_lock();
+	key = irq_lock();
+	flexspi_ahb_prefetch(flexspi, false);
+
+	return key;
+}
+
+/**
+ * Mark the end of a critical section.
+ * Calling this function re-enable all interrupts and scheduling.
+ *
+ * @param flexspi FlexSPI device driver handle.
+ * @param irq_lock key.
+ */
+static ALWAYS_INLINE void critical_section_leave(struct device *flexspi,
+						 unsigned int key)
+{
+	irq_unlock(key);
+	k_sched_unlock();
+	flexspi_ahb_prefetch(flexspi, true);
+}
+
 #define REG_STATUS_BIT_BUSY 1U
 
 status_t flexspi_nor_flash_wait_bus_busy(struct device *flexspi,
@@ -100,8 +133,7 @@ static int flexspi_nor_flash_sector_erase(struct device *dev, off_t offset)
 	__ASSERT((offset & (dev_cfg->pages_layout.pages_size - 1U)) == 0,
 		 "Offset not on sector boundary");
 
-	k_sched_lock();
-	unsigned int key = irq_lock();
+	unsigned int key = critical_section_enter(dev_data->flexspi);
 
 	flashXfer.deviceAddress = offset;
 	flashXfer.port          = dev_cfg->port;
@@ -123,8 +155,7 @@ static int flexspi_nor_flash_sector_erase(struct device *dev, off_t offset)
 	}
 
 done:
-	irq_unlock(key);
-	k_sched_unlock();
+	critical_section_leave(dev_data->flexspi, key);
 	return retval;
 }
 
@@ -182,8 +213,7 @@ static int flexspi_nor_flash_page_program(struct device *dev, off_t offset,
 
 	__ASSERT(len <= dev_cfg->page_size, "Length is above page size");
 
-	k_sched_lock();
-	unsigned int key = irq_lock();
+	unsigned int key = critical_section_enter(dev_data->flexspi);
 
 	flashXfer.deviceAddress = offset;
 	flashXfer.port          = dev_cfg->port;
@@ -207,8 +237,7 @@ static int flexspi_nor_flash_page_program(struct device *dev, off_t offset,
 	}
 
 done:
-	irq_unlock(key);
-	k_sched_unlock();
+	critical_section_leave(dev_data->flexspi, key);
 	return retval;
 }
 
@@ -292,6 +321,8 @@ int flexspi_nor_flash_init(struct device *dev)
 		return -EPERM;
 	}
 
+	unsigned int key = critical_section_enter(dev_data->flexspi);
+
 	/* TODO: Allow configuring the LUT for more than one device. */
 	flexspi_update_lut(dev_data->flexspi,
 			   0,
@@ -300,6 +331,8 @@ int flexspi_nor_flash_init(struct device *dev)
 	lut_configured = true;
 
 	flexspi_sw_reset(dev_data->flexspi);
+
+	critical_section_leave(dev_data->flexspi, key);
 
 	/* TODO: Return -ENODEV if JEDEC ID is not the same as in DTS. */
 
