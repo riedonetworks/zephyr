@@ -8,12 +8,16 @@
 
 struct flexspi_imx_config {
 	FLEXSPI_Type *base;	/*!< Base address of the FlexSPI controller. */
+	u32_t *mem_addr;	/*!< Base address in the CPU memory map. */
 };
 
 /*******************************************************************************
  *  A P I
  ******************************************************************************/
 
+/**
+ * Wrapper for FLEXSPI_UpdateLUT.
+ */
 void flexspi_imx_update_lut(struct device *dev, unsigned int index,
 			    const u32_t *cmd, unsigned int count)
 {
@@ -22,6 +26,9 @@ void flexspi_imx_update_lut(struct device *dev, unsigned int index,
 	FLEXSPI_UpdateLUT(dev_cfg->base, index, cmd, count);
 }
 
+/**
+ * Wrapper for FLEXSPI_SoftwareReset.
+ */
 void flexspi_imx_sw_reset(struct device *dev)
 {
 	const struct flexspi_imx_config *dev_cfg = dev->config->config_info;
@@ -29,12 +36,43 @@ void flexspi_imx_sw_reset(struct device *dev)
 	FLEXSPI_SoftwareReset(dev_cfg->base);
 }
 
+/**
+ * Wrapper for FLEXSPI_TransferBlocking.
+ */
 status_t flexspi_imx_xfer_blocking(struct device *dev,
 				   flexspi_transfer_t *xfer)
 {
 	const struct flexspi_imx_config *dev_cfg = dev->config->config_info;
 
 	return FLEXSPI_TransferBlocking(dev_cfg->base, xfer);
+}
+
+/**
+ * Enable or disable AHB read prefetch.
+ */
+void flexspi_imx_ahb_prefetch(struct device *dev, bool enable)
+{
+	const struct flexspi_imx_config *dev_cfg = dev->config->config_info;
+
+	if (enable) {
+		dev_cfg->base->AHBCR |= FLEXSPI_AHBCR_PREFETCHEN_MASK;
+	} else {
+		dev_cfg->base->AHBCR &= ~FLEXSPI_AHBCR_PREFETCHEN_MASK;
+	}
+}
+
+/**
+ * Wrapper to SCB_InvalidateDCache_by_Addr.
+ */
+void flexspi_imx_invalidate_dcache(struct device *dev,
+				   off_t offset,
+				   s32_t size)
+{
+	const struct flexspi_imx_config *dev_cfg = dev->config->config_info;
+
+	/* Using ARM specific function since Zephyr doesn't have
+	   a generic cache management API. */
+	SCB_InvalidateDCache_by_Addr(dev_cfg->mem_addr + offset, size);
 }
 
 /*******************************************************************************
@@ -50,6 +88,8 @@ static const struct flexspi_driver_api flexspi_imx_api = {
 	.update_lut = flexspi_imx_update_lut,
 	.sw_reset = flexspi_imx_sw_reset,
 	.xfer_blocking = flexspi_imx_xfer_blocking,
+	.ahb_prefetch = flexspi_imx_ahb_prefetch,
+	.invalidate_dcache = flexspi_imx_invalidate_dcache,
 };
 
 /*******************************************************************************
@@ -68,6 +108,7 @@ static const struct flexspi_driver_api flexspi_imx_api = {
 
 static const struct flexspi_imx_config flexspi0_config = {
 	.base = (FLEXSPI_Type *)FLEXSPI_BASE_ADDRESS,
+	.mem_addr = (u32_t *)FlexSPI_AMBA_BASE,
 };
 
 DEVICE_AND_API_INIT(flexspi0_controller,
@@ -97,6 +138,7 @@ DEVICE_AND_API_INIT(flexspi0_controller,
 
 static const struct flexspi_imx_config flexspi1_config = {
 	.base = (FLEXSPI_Type *)FLEXSPI2_BASE_ADDRESS,
+	.mem_addr = (u32_t *)FlexSPI2_AMBA_BASE,
 };
 
 DEVICE_AND_API_INIT(flexspi1_controller,
