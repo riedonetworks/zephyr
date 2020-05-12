@@ -6,7 +6,7 @@
 
 menuconfig FLEXSPI_NOR_FLASH
 	bool "SPI NOR flash controlled by FlexSPI"
-	depends on SOC_SERIES_IMX_RT && FLEXSPI_IMX
+	depends on FLEXSPI_IMX
 	select FLASH_HAS_DRIVER_ENABLED
 	select FLASH_HAS_PAGE_LAYOUT
 

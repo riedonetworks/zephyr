@@ -42,7 +42,7 @@ int flexspi_nor_flash_read(struct device *dev, off_t offset,
 	flashXfer.data          = data;
 	flashXfer.dataSize      = len;
 
-	status = FLEXSPI_TransferBlocking(dev_data->base, &flashXfer);
+	status = flexspi_xfer_blocking(dev_data->flexspi, &flashXfer);
 	if (status != kStatus_Success) {
 		return -EIO;
 	}
@@ -71,7 +71,7 @@ int flexspi_nor_flash_write_protection_set(struct device *dev, bool enable)
 	flashXfer.SeqNumber     = 1;
 	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_WRITEENABLE;
 
-	status = FLEXSPI_TransferBlocking(dev_data->base, &flashXfer);
+	status = flexspi_xfer_blocking(dev_data->flexspi, &flashXfer);
 	if (status != kStatus_Success) {
 		return -EIO;
 	}

@@ -11,7 +11,6 @@
  */
 
 #include "flexspi_nor_flash.h"
-#include "../spi/flexspi_imx.h"
 
 #define LOG_MODULE_NAME flexspi_nor_flash
 #define LOG_LEVEL CONFIG_FLASH_LOG_LEVEL
@@ -28,7 +27,7 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
 #define REG_STATUS_BIT_BUSY 1U
 
-status_t flexspi_nor_flash_wait_bus_busy(FLEXSPI_Type *base,
+status_t flexspi_nor_flash_wait_bus_busy(struct device *flexspi,
 					 flexspi_port_t port)
 {
 	flexspi_transfer_t flashXfer;
@@ -45,7 +44,7 @@ status_t flexspi_nor_flash_wait_bus_busy(FLEXSPI_Type *base,
 	flashXfer.dataSize      = 1;
 
 	do {
-		status = FLEXSPI_TransferBlocking(base, &flashXfer);
+		status = flexspi_xfer_blocking(flexspi, &flashXfer);
 		if (status != kStatus_Success) {
 			return status;
 		}
@@ -62,7 +61,7 @@ status_t flexspi_nor_flash_wait_bus_busy(FLEXSPI_Type *base,
 }
 
 #if CONFIG_FLASH_LOG_LEVEL >= 4
-static status_t flexspi_nor_flash_get_reg(FLEXSPI_Type *base,
+static status_t flexspi_nor_flash_get_reg(struct device *flexspi,
 					  flexspi_port_t port,
 					  u8_t cmd_idx,
 					  void *reg,
@@ -79,7 +78,7 @@ static status_t flexspi_nor_flash_get_reg(FLEXSPI_Type *base,
 	flashXfer.data          = reg;
 	flashXfer.dataSize      = len;
 
-	status = FLEXSPI_TransferBlocking(base, &flashXfer);
+	status = flexspi_xfer_blocking(flexspi, &flashXfer);
 
 	return status;
 }
@@ -110,13 +109,14 @@ static int flexspi_nor_flash_sector_erase(struct device *dev, off_t offset)
 	flashXfer.SeqNumber     = 1;
 	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_ERASESECTOR;
 
-	status = FLEXSPI_TransferBlocking(dev_data->base, &flashXfer);
+	status = flexspi_xfer_blocking(dev_data->flexspi, &flashXfer);
 	if (status != kStatus_Success) {
 		retval = -EIO;
 		goto done;
 	}
 
-	status = flexspi_nor_flash_wait_bus_busy(dev_data->base, dev_cfg->port);
+	status = flexspi_nor_flash_wait_bus_busy(dev_data->flexspi,
+						 dev_cfg->port);
 	if (status != kStatus_Success) {
 		retval = -EIO;
 		goto done;
@@ -193,13 +193,14 @@ static int flexspi_nor_flash_page_program(struct device *dev, off_t offset,
 	flashXfer.data          = (void *)data;
 	flashXfer.dataSize      = len;
 
-	status = FLEXSPI_TransferBlocking(dev_data->base, &flashXfer);
+	status = flexspi_xfer_blocking(dev_data->flexspi, &flashXfer);
 	if (status != kStatus_Success) {
 		retval = -EIO;
 		goto done;
 	}
 
-	status = flexspi_nor_flash_wait_bus_busy(dev_data->base, dev_cfg->port);
+	status = flexspi_nor_flash_wait_bus_busy(dev_data->flexspi,
+						 dev_cfg->port);
 	if (status != kStatus_Success) {
 		retval = -EIO;
 		goto done;
@@ -263,7 +264,6 @@ int flexspi_nor_flash_write(struct device *dev, off_t offset,
  *  I N I T
  ******************************************************************************/
 
-/* TODO: Verify if it is actually required to have this function in RAM. */
 int flexspi_nor_flash_init(struct device *dev)
 {
 	static bool lut_configured = false;
@@ -275,17 +275,14 @@ int flexspi_nor_flash_init(struct device *dev)
 	/*
 	 * FLEX SPI controller binding
 	 */
-	struct device *flexspi = device_get_binding(dev_cfg->bus_name);
-	if (!flexspi) {
+	dev_data->flexspi = device_get_binding(dev_cfg->bus_name);
+	if (!dev_data->flexspi) {
 		LOG_ERR("Failed to get FlexSPI bus for %s", dev->config->name);
 		return -ENODEV;
 	}
 
-	const struct flexspi_imx_config *bus_cfg = flexspi->config->config_info;
-	dev_data->base = bus_cfg->base;
-
-	LOG_DBG("%s bound to FlexSPI controller %s@%p",
-		dev->config->name, flexspi->config->name, dev_data->base);
+	LOG_DBG("%s bound to FlexSPI controller %s",
+		dev->config->name, dev_data->flexspi->config->name);
 
 	/*
 	 * Configure LUT
@@ -296,10 +293,13 @@ int flexspi_nor_flash_init(struct device *dev)
 	}
 
 	/* TODO: Allow configuring the LUT for more than one device. */
-	FLEXSPI_UpdateLUT(dev_data->base, 0, dev_cfg->lut, dev_cfg->lut_length);
+	flexspi_update_lut(dev_data->flexspi,
+			   0,
+			   dev_cfg->lut,
+			   dev_cfg->lut_length);
 	lut_configured = true;
 
-	FLEXSPI_SoftwareReset(dev_data->base);
+	flexspi_sw_reset(dev_data->flexspi);
 
 	/* TODO: Return -ENODEV if JEDEC ID is not the same as in DTS. */
 
