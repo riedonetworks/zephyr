@@ -37,6 +37,9 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
  */
 static ALWAYS_INLINE unsigned int critical_section_enter(struct device *flexspi)
 {
+	/* TODO If flash is not used for executing code (XIP)
+	        this function must be a no-op. */
+
 	unsigned int key;
 
 	key = irq_lock();
@@ -55,6 +58,9 @@ static ALWAYS_INLINE unsigned int critical_section_enter(struct device *flexspi)
 static ALWAYS_INLINE void critical_section_leave(struct device *flexspi,
 						 unsigned int key)
 {
+	/* TODO If flash is not used for executing code (XIP)
+	        this function must be a no-op. */
+
 	irq_unlock(key);
 	flexspi_ahb_prefetch(flexspi, true);
 }
@@ -348,6 +354,8 @@ int flexspi_nor_flash_init(struct device *dev)
 			   dev_cfg->lut_length);
 	lut_configured = true;
 
+	/* TODO Check why software reset is after FLEXSPI_UpdateLUT in SDK
+	        while in AN12564 examples it is before. */
 	flexspi_sw_reset(dev_data->flexspi);
 
 	critical_section_leave(dev_data->flexspi, key);
