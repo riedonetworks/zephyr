@@ -217,6 +217,8 @@ static int flexspi_nor_flash_page_program(struct device *dev, off_t offset,
 
 	__ASSERT(len <= dev_cfg->page_size, "Length is above page size");
 
+	memcpy(dev_data->bounce_buffer, data, len);
+
 	unsigned int key = critical_section_enter(dev_data->flexspi);
 
 	flashXfer.deviceAddress = offset;
@@ -224,7 +226,7 @@ static int flexspi_nor_flash_page_program(struct device *dev, off_t offset,
 	flashXfer.cmdType       = kFLEXSPI_Write;
 	flashXfer.SeqNumber     = 1;
 	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_PAGEPROGRAM;
-	flashXfer.data          = (void *)data;
+	flashXfer.data          = dev_data->bounce_buffer;
 	flashXfer.dataSize      = len;
 
 	status = flexspi_xfer_blocking(dev_data->flexspi, &flashXfer);
@@ -305,6 +307,17 @@ int flexspi_nor_flash_init(struct device *dev)
 	const struct flexspi_nor_flash_dev_config *dev_cfg =
 		dev->config->config_info;
 	struct flexspi_nor_flash_dev_data *dev_data = dev->driver_data;
+
+	/*
+	 * Allocate bounce buffer
+	 */
+	dev_data->bounce_buffer = k_malloc(dev_cfg->page_size);
+	if (dev_data->bounce_buffer == NULL) {
+		LOG_ERR("Failed to allocate bounce buffer");
+		return -ENOMEM;
+	}
+	LOG_DBG("Bounce buffer successfully allocated %p",
+		dev_data->bounce_buffer);
 
 	/*
 	 * FLEX SPI controller binding

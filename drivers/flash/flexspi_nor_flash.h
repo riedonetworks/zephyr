@@ -34,6 +34,10 @@ enum {
 struct flexspi_nor_flash_dev_data {
 	/** Handle to the FlexSPI driver to which the flash is attached to. */
 	struct device *flexspi;
+	/** Bounce buffer to avoid accessing data from flash during writes. */
+	void *bounce_buffer;
+	/* TODO If flash is not used for executing code (XIP) do not use
+	        bounce buffer. */
 };
 
 struct flexspi_nor_flash_dev_config {
