@@ -155,6 +155,9 @@ static int flexspi_nor_flash_sector_erase(struct device *dev, off_t offset)
 	}
 
 done:
+	flexspi_invalidate_dcache(dev_data->flexspi,
+				  offset,
+				  dev_cfg->pages_layout.pages_size);
 	critical_section_leave(dev_data->flexspi, key);
 	return retval;
 }
@@ -237,6 +240,7 @@ static int flexspi_nor_flash_page_program(struct device *dev, off_t offset,
 	}
 
 done:
+	flexspi_invalidate_dcache(dev_data->flexspi, offset, len);
 	critical_section_leave(dev_data->flexspi, key);
 	return retval;
 }
