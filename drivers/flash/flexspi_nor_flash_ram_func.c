@@ -27,7 +27,10 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
 /**
  * Mark the beginning of a critical section.
- * @warning Calling this function disable all interrupts and scheduling.
+ * @warning Calling this function disable all interrupts.
+ *          No operations allowing another thread to run (e.g. sleeping)
+ *          must be called inside the critical section,
+ *          see https://docs.zephyrproject.org/latest/reference/kernel/other/interrupts.html#preventing-interruptions
  *
  * @param flexspi FlexSPI device driver handle.
  * @return irq_lock key.
@@ -36,7 +39,6 @@ static ALWAYS_INLINE unsigned int critical_section_enter(struct device *flexspi)
 {
 	unsigned int key;
 
-	k_sched_lock();
 	key = irq_lock();
 	flexspi_ahb_prefetch(flexspi, false);
 
@@ -45,7 +47,7 @@ static ALWAYS_INLINE unsigned int critical_section_enter(struct device *flexspi)
 
 /**
  * Mark the end of a critical section.
- * Calling this function re-enable all interrupts and scheduling.
+ * Calling this function re-enable all interrupts.
  *
  * @param flexspi FlexSPI device driver handle.
  * @param irq_lock key.
@@ -54,7 +56,6 @@ static ALWAYS_INLINE void critical_section_leave(struct device *flexspi,
 						 unsigned int key)
 {
 	irq_unlock(key);
-	k_sched_unlock();
 	flexspi_ahb_prefetch(flexspi, true);
 }
 
