@@ -10,7 +10,7 @@ struct flexspi_imx_data {
 	/** Base address of the FlexSPI controller. */
 	FLEXSPI_Type * const base;
 	/** Base address in the CPU memory map. */
-	u32_t * const mem_addr;
+	u32_t const mem_addr;
 };
 
 /*******************************************************************************
@@ -74,7 +74,8 @@ void flexspi_imx_invalidate_dcache(struct device *dev,
 
 	/* Using ARM specific function since Zephyr doesn't have
 	   a generic cache management API. */
-	SCB_InvalidateDCache_by_Addr(dev_cfg->mem_addr + offset, size);
+	SCB_InvalidateDCache_by_Addr((void *)(dev_data->mem_addr + offset),
+				     size);
 }
 
 /*******************************************************************************
@@ -110,7 +111,7 @@ static const struct flexspi_driver_api flexspi_imx_api = {
 
 static struct flexspi_imx_data flexspi0_data = {
 	.base = (FLEXSPI_Type *)FLEXSPI_BASE_ADDRESS,
-	.mem_addr = (u32_t *)FlexSPI_AMBA_BASE,
+	.mem_addr = FlexSPI_AMBA_BASE,
 };
 
 DEVICE_AND_API_INIT(flexspi0_controller,
@@ -140,7 +141,7 @@ DEVICE_AND_API_INIT(flexspi0_controller,
 
 static struct flexspi_imx_data flexspi1_data = {
 	.base = (FLEXSPI_Type *)FLEXSPI2_BASE_ADDRESS,
-	.mem_addr = (u32_t *)FlexSPI2_AMBA_BASE,
+	.mem_addr = FlexSPI2_AMBA_BASE,
 };
 
 DEVICE_AND_API_INIT(flexspi1_controller,
