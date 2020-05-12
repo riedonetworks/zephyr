@@ -123,8 +123,8 @@ static inline void flexspi_ahb_prefetch(struct device *dev, bool enable)
  * @param size Number of bytes to invalidate from offset.
  */
 static inline void flexspi_invalidate_dcache(struct device *dev,
-					      off_t offset,
-					      s32_t size)
+					     off_t offset,
+					     s32_t size)
 {
 	const struct flexspi_driver_api *api = dev->driver_api;
 
