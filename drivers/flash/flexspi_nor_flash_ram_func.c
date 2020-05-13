@@ -315,17 +315,6 @@ int flexspi_nor_flash_init(struct device *dev)
 	struct flexspi_nor_flash_dev_data *dev_data = dev->driver_data;
 
 	/*
-	 * Allocate bounce buffer
-	 */
-	dev_data->bounce_buffer = k_malloc(dev_cfg->page_size);
-	if (dev_data->bounce_buffer == NULL) {
-		LOG_ERR("Failed to allocate bounce buffer");
-		return -ENOMEM;
-	}
-	LOG_DBG("Bounce buffer successfully allocated %p",
-		dev_data->bounce_buffer);
-
-	/*
 	 * FLEX SPI controller binding
 	 */
 	dev_data->flexspi = device_get_binding(dev_cfg->bus_name);
