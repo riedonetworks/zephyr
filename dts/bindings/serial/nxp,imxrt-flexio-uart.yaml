@@ -1,7 +1,9 @@
-title: Kinetis LPUART
+# Copyright (C) 2020, Riedo Networks
+# SPDX-License-Identifier: Apache-2.0
 
-description: >
-    This binding gives a representation of the FlexIO periferal in UART mode.
+description: Kinetis LPUART
+
+  This binding gives a representation of the FlexIO periferal in UART mode.
 
 compatible: "nxp,imxrt-flexio-uart"
 
@@ -42,4 +44,3 @@ properties:
       type: int
       required: false
       description: FlexIO FXIO_Dn singal to use for the Rx clock signal
-

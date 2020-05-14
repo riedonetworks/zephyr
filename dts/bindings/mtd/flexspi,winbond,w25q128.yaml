@@ -1,9 +1,8 @@
 # Copyright (c) 2020, Riedo Networks Ltd
 # SPDX-License-Identifier: Apache-2.0
 
-title: winbond W25Q128 NOR FLASH
+description: winbond W25Q128 NOR FLASH
 
-description: >
   winbond W25Q128 NOR FLASH controlled through FlexSPI
 
 compatible: "flexspi,winbond,w25q128"
