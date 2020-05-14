@@ -1,0 +1,25 @@
+#
+# Copyright (c) 2020, Riedo Networks Ltd.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+#
+# FlexSPI Drivers
+#
+menuconfig FLEXSPI
+	bool "FlexSPI hardware bus support"
+	help
+	  Enable support for the FlexSPI hardware bus.
+
+if FLEXSPI
+
+config FLEXSPI_INIT_PRIORITY
+	int "Init priority"
+	default 70
+	help
+	  Device driver initialization priority.
+
+source "drivers/flexspi/Kconfig.imx"
+
+endif # FLEXSPI
