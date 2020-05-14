@@ -258,8 +258,9 @@ static int ili9340_init(struct device *dev)
 		return -EPERM;
 	}
 
-	gpio_pin_configure(data->reset_gpio, DT_INST_0_ILITEK_ILI9340_PARALLEL_RESET_GPIOS_PIN,
-			   GPIO_DIR_OUT);
+	gpio_pin_configure(data->reset_gpio,
+			   DT_INST_0_ILITEK_ILI9340_PARALLEL_RESET_GPIOS_PIN,
+			   GPIO_OUTPUT);
 #endif
 
 #ifdef CONFIG_ILI9340_SPI
@@ -288,11 +289,11 @@ static int ili9340_init(struct device *dev)
 
 #ifdef DT_INST_0_ILITEK_ILI9340_PARALLEL_RESET_GPIOS_CONTROLLER
 	LOG_DBG("Resetting display driver");
-	gpio_pin_write(data->reset_gpio, DT_INST_0_ILITEK_ILI9340_PARALLEL_RESET_GPIOS_PIN, 1);
+	gpio_pin_set(data->reset_gpio, DT_INST_0_ILITEK_ILI9340_PARALLEL_RESET_GPIOS_PIN, 1);
 	k_sleep(1);
-	gpio_pin_write(data->reset_gpio, DT_INST_0_ILITEK_ILI9340_PARALLEL_RESET_GPIOS_PIN, 0);
+	gpio_pin_set(data->reset_gpio, DT_INST_0_ILITEK_ILI9340_PARALLEL_RESET_GPIOS_PIN, 0);
 	k_sleep(1);
-	gpio_pin_write(data->reset_gpio, DT_INST_0_ILITEK_ILI9340_PARALLEL_RESET_GPIOS_PIN, 1);
+	gpio_pin_set(data->reset_gpio, DT_INST_0_ILITEK_ILI9340_PARALLEL_RESET_GPIOS_PIN, 1);
 	k_sleep(5);
 #endif
 
