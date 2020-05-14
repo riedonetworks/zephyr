@@ -382,7 +382,7 @@ static int mcux_flexio_uart_callback_set(struct device *dev, uart_callback_t cal
 }
 
 static int mcux_flexio_uart_tx(struct device *dev, const u8_t *buf, size_t len,
-			       u32_t timeout)
+			       s32_t timeout)
 {
 	struct mcux_flexio_uart_data *data = dev->driver_data;
 	const struct mcux_flexio_uart_config *config = dev->config->config_info;
@@ -439,7 +439,8 @@ static int mcux_flexio_uart_tx_abort(struct device *dev)
 
 static int mcux_flexio_uart_poll_in(struct device *dev, unsigned char *c);
 
-static int mcux_flexio_uart_rx_enable(struct device *dev, u8_t *buf, size_t len, u32_t timeout)
+static int mcux_flexio_uart_rx_enable(struct device *dev, u8_t *buf, size_t len,
+				      s32_t timeout)
 {
 	struct mcux_flexio_uart_data *data = dev->driver_data;
 	const struct mcux_flexio_uart_config *config = dev->config->config_info;
@@ -456,7 +457,7 @@ static int mcux_flexio_uart_rx_enable(struct device *dev, u8_t *buf, size_t len,
 	data->rx_xfer.data = buf;
 	data->rx_xfer.dataSize = len;
 	data->rx_timeout_time = timeout;
-	data->rx_timeout_chunk = MAX(timeout / 4U, 1);
+	data->rx_timeout_chunk = MAX(timeout / 4, 1);
 	data->rx_processed_len = 0U;
 
 	data->rx_timeout_from_isr = true;
@@ -532,7 +533,7 @@ static int mcux_flexio_uart_rx_disable(struct device *dev)
 	const struct mcux_flexio_uart_config *config = dev->config->config_info;
 	int retval;
 
-	// Canceld timeout
+	// Cancel timeout
 	k_delayed_work_cancel(&data->rx_timeout_work);
 
 	int key = irq_lock();
@@ -910,7 +911,7 @@ static int mcux_flexio_uart_init(struct device *dev)
 				   &clock_freq)) {
 		return -EINVAL;
 	}
-	LOG_INF("Initalizing FlexIO-UART \"%s\"", dev->config->name);
+	LOG_INF("Initalizing FlexIO-UART \"%s\"", log_strdup(dev->config->name));
 	LOG_DBG("Clock freq: %d MHz", clock_freq / 1000000);
 	LOG_INF("target baudrade: %d", config->baud_rate);
 	LOG_DBG("TX pin: %d", config->base->TxPinIndex);
