@@ -1,14 +1,10 @@
-# Kconfig - ST7789V display driver configuration options
+# ST7789V display driver configuration options
 
-#
 # Copyright (c) 2019 Marc Reilly <marc@cpdesign.com.au>
-#
 # SPDX-License-Identifier: Apache-2.0
-#
 
 menuconfig ST7789V
 	bool "ST7789V display driver"
-	# depends on SPI
 	help
 	  Enable driver for ST7789V display driver.
 
@@ -16,6 +12,7 @@ if ST7789V
 
 choice ST7789V_LCD
 	prompt "LCD"
+	depends on ST7789V
 	help
 	  Specify the type of LCD connected to the ST7789V display controller.
 
@@ -27,7 +24,7 @@ config ST7789V_LCD_FG0204L0DSSWMG01
 
 config ST7789V_LCD_TL024QVV09
 	bool "Top Display TL024QVV09"
-		
+
 endchoice
 
 choice ST7789V_IFACE
@@ -37,6 +34,7 @@ choice ST7789V_IFACE
 	Specify the MCU interface to use
 
 config ST7789V_SPI
+	depends on SPI
 	bool "SPI"
 
 config ST7789V_PARALLEL
@@ -44,10 +42,10 @@ config ST7789V_PARALLEL
 
 endchoice
 
-
 choice ST7789V_PIXEL_FORMAT
 	prompt "Color pixel format"
 	default ST7789V_RGB565
+	depends on ST7789V
 	help
 	  Specify the color pixel format for the ST7789V display controller.
 
@@ -59,31 +57,4 @@ config ST7789V_RGB565
 
 endchoice
 
-if ST7789V_RGB565
-config ST7789V_SWAP_PIXEL_LCD_ENDIANNESS
-	bool "Swap pixel endianness at LCD"
-	help
-	  Pixel data bytes are swapped when being blitted to the LCD.
-	  Note that this isn't just a swap of RGB <--> BGR, (if the endianness is
-	  swapped then the 3 lowest bits of G are sent first/last).
-	  You may want to enable this if you are using lvgl and your colors
-	  don't look right.
-
-config ST7789V_REVERSE_LCD_RGB_ORDER
-	bool "Reverse draw order of controller ram to LCD"
-	help
-	  This reverses the order that the controller draws RGB to the LCD.
-
-config ST7789V_REVERSE_X
-	bool "Reverse X axis"
-	help
-	  Address pixels from right to left.
-
-config ST7789V_REVERSE_Y
-	bool "Reverse Y axis"
-	help
-	  Address pixels from bottom to top.
-
-endif #ST7789V_RGB565
-
-endif #ST7789V
+endif

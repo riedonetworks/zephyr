@@ -49,6 +49,8 @@
  */
 #if defined(CONFIG_HPET_TIMER)
 #define TICK_IRQ DT_INST_0_INTEL_HPET_IRQ_0
+#elif defined(CONFIG_ARM_ARCH_TIMER)
+#define TICK_IRQ ARM_ARCH_TIMER_IRQ
 #elif defined(CONFIG_APIC_TIMER)
 #define TICK_IRQ CONFIG_APIC_TIMER_IRQ
 #elif defined(CONFIG_LOAPIC_TIMER)
@@ -260,7 +262,7 @@ static void _test_kernel_cpu_idle(int atomic)
 			k_cpu_idle();
 		}
 		/* calculating milliseconds per tick*/
-		tms += __ticks_to_ms(1);
+		tms += k_ticks_to_ms_floor64(1);
 		tms2 = k_uptime_get_32();
 		zassert_false(tms2 < tms, "Bad ms per tick value computed,"
 			      "got %d which is less than %d\n",
@@ -699,7 +701,7 @@ static void thread_sleep(void *delta, void *arg2, void *arg3)
 	timestamp = k_uptime_get() - timestamp;
 	TC_PRINT(" thread back from sleep\n");
 
-	int slop = MAX(__ticks_to_ms(2), 1);
+	int slop = MAX(k_ticks_to_ms_floor64(2), 1);
 
 	if (timestamp < timeout || timestamp > timeout + slop) {
 		TC_ERROR("timestamp out of range, got %d\n", (int)timestamp);

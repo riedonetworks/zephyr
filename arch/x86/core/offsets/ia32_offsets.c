@@ -26,13 +26,13 @@
 
 #include <arch/x86/mmustructs.h>
 
-#include <kernel_offsets.h>
-
 #if defined(CONFIG_LAZY_FP_SHARING)
 GEN_OFFSET_SYM(_thread_arch_t, excNestCount);
 #endif
 
 #ifdef CONFIG_USERSPACE
+GEN_OFFSET_SYM(_thread_arch_t, psp);
+GEN_OFFSET_SYM(_thread_arch_t, ptables);
 GEN_ABSOLUTE_SYM(Z_X86_PDPT_SIZE, sizeof(struct x86_mmu_pdpt));
 #endif
 

@@ -67,6 +67,14 @@
 #include <stm32f1xx_ll_adc.h>
 #endif
 
+#ifdef CONFIG_DMA_STM32
+#include <stm32f1xx_ll_dma.h>
+#endif
+
+#ifdef CONFIG_HWINFO_STM32
+#include <stm32f1xx_ll_utils.h>
+#endif
+
 #endif /* !_ASMLANGUAGE */
 
 #endif /* _STM32F1_SOC_H_ */

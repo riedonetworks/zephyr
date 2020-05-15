@@ -8,7 +8,7 @@
  * https://www.st.com/resource/en/datasheet/lps22hh.pdf
  */
 
-#include <sensor.h>
+#include <drivers/sensor.h>
 #include <kernel.h>
 #include <device.h>
 #include <init.h>
@@ -203,6 +203,7 @@ static const struct lps22hh_config lps22hh_config = {
 #ifdef CONFIG_LPS22HH_TRIGGER
 	.drdy_port	= DT_INST_0_ST_LPS22HH_DRDY_GPIOS_CONTROLLER,
 	.drdy_pin	= DT_INST_0_ST_LPS22HH_DRDY_GPIOS_PIN,
+	.drdy_flags	= DT_INST_0_ST_LPS22HH_DRDY_GPIOS_FLAGS,
 #endif
 #if defined(DT_ST_LPS22HH_BUS_SPI)
 	.bus_init = lps22hh_spi_init,
@@ -211,9 +212,9 @@ static const struct lps22hh_config lps22hh_config = {
 			       SPI_MODE_CPHA | SPI_WORD_SET(8) |
 			       SPI_LINES_SINGLE),
 	.spi_conf.slave     = DT_INST_0_ST_LPS22HH_BASE_ADDRESS,
-#if defined(DT_INST_0_ST_LPS22HH_CS_GPIO_CONTROLLER)
-	.gpio_cs_port	    = DT_INST_0_ST_LPS22HH_CS_GPIO_CONTROLLER,
-	.cs_gpio	    = DT_INST_0_ST_LPS22HH_CS_GPIO_PIN,
+#if defined(DT_INST_0_ST_LPS22HH_CS_GPIOS_CONTROLLER)
+	.gpio_cs_port	    = DT_INST_0_ST_LPS22HH_CS_GPIOS_CONTROLLER,
+	.cs_gpio	    = DT_INST_0_ST_LPS22HH_CS_GPIOS_PIN,
 
 	.spi_conf.cs        =  &lps22hh_data.cs_ctrl,
 #else

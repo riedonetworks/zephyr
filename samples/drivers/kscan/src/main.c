@@ -5,10 +5,10 @@
  */
 
 #include <zephyr.h>
-#include <misc/printk.h>
-#include <gpio.h>
+#include <sys/printk.h>
+#include <drivers/gpio.h>
 #include <soc.h>
-#include <kscan.h>
+#include <drivers/kscan.h>
 
 #define LOG_LEVEL LOG_LEVEL_DBG
 #include <logging/log.h>
@@ -120,7 +120,7 @@ static void typematic_callback(struct k_timer *timer)
 	LOG_INF("Typematic : %u\n", last_key);
 }
 
-static void kb_callback(struct device *dev, u8_t row, u8_t col, bool pressed)
+static void kb_callback(struct device *dev, u32_t row, u32_t col, bool pressed)
 {
 	ARG_UNUSED(dev);
 	last_key = keymap[col][row];
@@ -164,4 +164,3 @@ void main(void)
 	k_timer_start(&block_matrix_timer, K_SECONDS(1), K_SECONDS(3));
 
 }
-

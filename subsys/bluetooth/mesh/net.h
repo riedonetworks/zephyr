@@ -33,6 +33,13 @@ struct bt_mesh_app_key {
 	} keys[2];
 };
 
+struct bt_mesh_node {
+	u16_t addr;
+	u16_t net_idx;
+	u8_t  dev_key[16];
+	u8_t  num_elem;
+};
+
 struct bt_mesh_subnet {
 	u32_t beacon_sent;        /* Timestamp of last sent beacon */
 	u8_t  beacons_last;       /* Number of beacons during last
@@ -90,7 +97,6 @@ struct bt_mesh_friend {
 	u8_t  fsn:1,
 	      send_last:1,
 	      pending_req:1,
-	      sec_update:1,
 	      pending_buf:1,
 	      valid:1,
 	      established:1;

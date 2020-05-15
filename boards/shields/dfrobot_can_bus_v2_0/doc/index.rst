@@ -7,7 +7,7 @@ Overview
 ********
 
 The DFRobot CAN BUS shield supports the Microship MCP2515 stand-alone CAN
-controller and JTA1050 high speed CAN tranceiver.
+controller and JTA1050 high speed CAN transceiver.
 The shield has an Arduino Uno R3 compatible hardware interface.
 
 
@@ -63,7 +63,7 @@ Hardware
 +-------+-----------------------+---------------------------+
 | D1    | TX                    | Ext. header only          |
 +-------+-----------------------+---------------------------+
-| D2    | GPIO_INT_ACTIVE_LOW   | MCP2515 - INT             |
+| D2    | GPIO_ACTIVE_LOW       | MCP2515 - INT             |
 +-------+-----------------------+---------------------------+
 | D3    | None                  |                           |
 +-------+-----------------------+---------------------------+

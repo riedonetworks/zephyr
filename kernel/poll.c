@@ -232,7 +232,7 @@ static int k_poll_poller_cb(struct k_poll_event *event, u32_t state)
 	}
 
 	z_unpend_thread(thread);
-	z_arch_thread_return_value_set(thread,
+	arch_thread_return_value_set(thread,
 		state == K_POLL_STATE_CANCELLED ? -EINTR : 0);
 
 	if (!z_is_thread_ready(thread)) {
@@ -252,9 +252,9 @@ int z_impl_k_poll(struct k_poll_event *events, int num_events, s32_t timeout)
 				  .thread     = _current,
 				  .cb         = k_poll_poller_cb };
 
-	__ASSERT(!z_arch_is_in_isr(), "");
+	__ASSERT(!arch_is_in_isr(), "");
 	__ASSERT(events != NULL, "NULL events\n");
-	__ASSERT(num_events > 0, "zero events\n");
+	__ASSERT(num_events >= 0, "<0 events\n");
 
 	events_registered = register_events(events, num_events, &poller,
 					    (timeout == K_NO_WAIT));
@@ -311,7 +311,7 @@ static inline int z_vrfy_k_poll(struct k_poll_event *events,
 	/* Validate the events buffer and make a copy of it in an
 	 * allocated kernel-side buffer.
 	 */
-	if (Z_SYSCALL_VERIFY(num_events > 0)) {
+	if (Z_SYSCALL_VERIFY(num_events >= 0)) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -638,7 +638,7 @@ int k_work_poll_submit_to_queue(struct k_work_q *work_q,
 		if (timeout != K_FOREVER) {
 			z_add_timeout(&work->timeout,
 				      triggered_work_expiration_handler,
-				      z_ms_to_ticks(timeout));
+				      k_ms_to_ticks_ceil32(timeout));
 		}
 
 		/* From now, any event will result in submitted work. */

@@ -21,7 +21,7 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(adc_stm32);
 
-#include <clock_control/stm32_clock_control.h>
+#include <drivers/clock_control/stm32_clock_control.h>
 
 #if !defined(CONFIG_SOC_SERIES_STM32F0X) && \
 	!defined(CONFIG_SOC_SERIES_STM32L0X)
@@ -532,7 +532,7 @@ static int adc_stm32_init(struct device *dev)
 	defined(CONFIG_SOC_SERIES_STM32L4X) || \
 	defined(CONFIG_SOC_SERIES_STM32WBX) || \
 	defined(CONFIG_SOC_SERIES_STM32G4X)
-	LL_ADC_SetCommonClock(__LL_ADC_COMMON_INSTANCE(),
+	LL_ADC_SetCommonClock(__LL_ADC_COMMON_INSTANCE(adc),
 			LL_ADC_CLOCK_SYNC_PCLK_DIV4);
 #endif
 

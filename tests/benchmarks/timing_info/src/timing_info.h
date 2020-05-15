@@ -50,6 +50,12 @@
 #define TIMING_INFO_GET_TIMER_VALUE()  (TIMING_INFO_OS_GET_TIME())
 #define SUBTRACT_CLOCK_CYCLES(val)     (val)
 
+#elif CONFIG_ARM64
+#define TIMING_INFO_PRE_READ()
+#define TIMING_INFO_OS_GET_TIME()      (k_cycle_get_32())
+#define TIMING_INFO_GET_TIMER_VALUE()  (k_cycle_get_32())
+#define SUBTRACT_CLOCK_CYCLES(val)     ((u32_t)val)
+
 #elif CONFIG_ARM
 #define TIMING_INFO_PRE_READ()
 #define TIMING_INFO_OS_GET_TIME()      (k_cycle_get_32())
@@ -133,7 +139,7 @@ static inline void benchmark_timer_init(void)  {       }
 static inline void benchmark_timer_stop(void)  {       }
 static inline void benchmark_timer_start(void) {       }
 
-#define CYCLES_TO_NS(x) SYS_CLOCK_HW_CYCLES_TO_NS(x)
+#define CYCLES_TO_NS(x) (u32_t)k_cyc_to_ns_floor64(x)
 
 /* Get Core Frequency in MHz */
 static inline u32_t get_core_freq_MHz(void)

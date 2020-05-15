@@ -259,6 +259,7 @@ static const struct lis2mdl_config lis2mdl_dev_config = {
 #ifdef CONFIG_LIS2MDL_TRIGGER
 	.gpio_name = DT_INST_0_ST_LIS2MDL_IRQ_GPIOS_CONTROLLER,
 	.gpio_pin = DT_INST_0_ST_LIS2MDL_IRQ_GPIOS_PIN,
+	.gpio_flags = DT_INST_0_ST_LIS2MDL_IRQ_GPIOS_FLAGS,
 #endif  /* CONFIG_LIS2MDL_TRIGGER */
 #if defined(DT_ST_LIS2MDL_BUS_SPI)
 	.bus_init = lis2mdl_spi_init,
@@ -309,6 +310,13 @@ static int lis2mdl_init(struct device *dev)
 	}
 
 	k_busy_wait(100);
+
+#if CONFIG_LIS2MDL_SPI_FULL_DUPLEX
+	/* After s/w reset set SPI 4wires again if the case */
+	if (lis2mdl_spi_mode_set(lis2mdl->ctx, LIS2MDL_SPI_4_WIRE) < 0) {
+		return -EIO;
+	}
+#endif
 
 	/* enable BDU */
 	if (lis2mdl_block_data_update_set(lis2mdl->ctx, PROPERTY_ENABLE) < 0) {
