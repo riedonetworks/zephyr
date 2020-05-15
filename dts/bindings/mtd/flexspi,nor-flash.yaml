@@ -26,3 +26,8 @@ properties:
       - dual
       - quad
       - qpi
+
+  page-size:
+    type: int
+    required: true
+    description: "Size of write page in bytes."

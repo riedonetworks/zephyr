@@ -9,8 +9,8 @@
 #define ZEPHYR_DRIVERS_FLEXSPI_NOR_FLASH_H_
 
 #include <device.h>
-#include <fsl_flexspi.h>
 #include <drivers/flash.h>
+#include <drivers/flexspi.h>
 
 /* SPI access modes, corresponds to "spi-access-mode" property in devicetree. */
 #define SPI_ACCESS_MODE_SINGLE 0
@@ -32,7 +32,12 @@ enum {
 };
 
 struct flexspi_nor_flash_dev_data {
-	FLEXSPI_Type *base;	/* Base address of the FlexSPI controller. */
+	/** Handle to the FlexSPI driver to which the flash is attached to. */
+	struct device *flexspi;
+	/** Bounce buffer to avoid accessing data from flash during writes. */
+	u32_t *bounce_buffer;
+	/* TODO If flash is not used for executing code (XIP) do not use
+	        bounce buffer. */
 };
 
 struct flexspi_nor_flash_dev_config {

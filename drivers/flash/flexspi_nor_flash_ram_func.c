@@ -11,7 +11,6 @@
  */
 
 #include "flexspi_nor_flash.h"
-#include "../spi/flexspi_imx.h"
 
 #define LOG_MODULE_NAME flexspi_nor_flash
 #define LOG_LEVEL CONFIG_FLASH_LOG_LEVEL
@@ -26,9 +25,49 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
  *  H E L P E R S
  ******************************************************************************/
 
+/**
+ * Mark the beginning of a critical section.
+ * @warning Calling this function disable all interrupts.
+ *          No operations allowing another thread to run (e.g. sleeping)
+ *          must be called inside the critical section,
+ *          see https://docs.zephyrproject.org/latest/reference/kernel/other/interrupts.html#preventing-interruptions
+ *
+ * @param flexspi FlexSPI device driver handle.
+ * @return irq_lock key.
+ */
+static ALWAYS_INLINE unsigned int critical_section_enter(struct device *flexspi)
+{
+	/* TODO If flash is not used for executing code (XIP)
+	        this function must be a no-op. */
+
+	unsigned int key;
+
+	key = irq_lock();
+	flexspi_ahb_prefetch(flexspi, false);
+
+	return key;
+}
+
+/**
+ * Mark the end of a critical section.
+ * Calling this function re-enable all interrupts.
+ *
+ * @param flexspi FlexSPI device driver handle.
+ * @param irq_lock key.
+ */
+static ALWAYS_INLINE void critical_section_leave(struct device *flexspi,
+						 unsigned int key)
+{
+	/* TODO If flash is not used for executing code (XIP)
+	        this function must be a no-op. */
+
+	irq_unlock(key);
+	flexspi_ahb_prefetch(flexspi, true);
+}
+
 #define REG_STATUS_BIT_BUSY 1U
 
-status_t flexspi_nor_flash_wait_bus_busy(FLEXSPI_Type *base,
+status_t flexspi_nor_flash_wait_bus_busy(struct device *flexspi,
 					 flexspi_port_t port)
 {
 	flexspi_transfer_t flashXfer;
@@ -45,7 +84,7 @@ status_t flexspi_nor_flash_wait_bus_busy(FLEXSPI_Type *base,
 	flashXfer.dataSize      = 1;
 
 	do {
-		status = FLEXSPI_TransferBlocking(base, &flashXfer);
+		status = flexspi_xfer_blocking(flexspi, &flashXfer);
 		if (status != kStatus_Success) {
 			return status;
 		}
@@ -62,7 +101,7 @@ status_t flexspi_nor_flash_wait_bus_busy(FLEXSPI_Type *base,
 }
 
 #if CONFIG_FLASH_LOG_LEVEL >= 4
-static status_t flexspi_nor_flash_get_reg(FLEXSPI_Type *base,
+static status_t flexspi_nor_flash_get_reg(struct device *flexspi,
 					  flexspi_port_t port,
 					  u8_t cmd_idx,
 					  void *reg,
@@ -79,7 +118,7 @@ static status_t flexspi_nor_flash_get_reg(FLEXSPI_Type *base,
 	flashXfer.data          = reg;
 	flashXfer.dataSize      = len;
 
-	status = FLEXSPI_TransferBlocking(base, &flashXfer);
+	status = flexspi_xfer_blocking(flexspi, &flashXfer);
 
 	return status;
 }
@@ -101,8 +140,7 @@ static int flexspi_nor_flash_sector_erase(struct device *dev, off_t offset)
 	__ASSERT((offset & (dev_cfg->pages_layout.pages_size - 1U)) == 0,
 		 "Offset not on sector boundary");
 
-	k_sched_lock();
-	unsigned int key = irq_lock();
+	unsigned int key = critical_section_enter(dev_data->flexspi);
 
 	flashXfer.deviceAddress = offset;
 	flashXfer.port          = dev_cfg->port;
@@ -110,21 +148,24 @@ static int flexspi_nor_flash_sector_erase(struct device *dev, off_t offset)
 	flashXfer.SeqNumber     = 1;
 	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_ERASESECTOR;
 
-	status = FLEXSPI_TransferBlocking(dev_data->base, &flashXfer);
+	status = flexspi_xfer_blocking(dev_data->flexspi, &flashXfer);
 	if (status != kStatus_Success) {
 		retval = -EIO;
 		goto done;
 	}
 
-	status = flexspi_nor_flash_wait_bus_busy(dev_data->base, dev_cfg->port);
+	status = flexspi_nor_flash_wait_bus_busy(dev_data->flexspi,
+						 dev_cfg->port);
 	if (status != kStatus_Success) {
 		retval = -EIO;
 		goto done;
 	}
 
 done:
-	irq_unlock(key);
-	k_sched_unlock();
+	flexspi_invalidate_dcache(dev_data->flexspi,
+				  offset,
+				  dev_cfg->pages_layout.pages_size);
+	critical_section_leave(dev_data->flexspi, key);
 	return retval;
 }
 
@@ -182,32 +223,34 @@ static int flexspi_nor_flash_page_program(struct device *dev, off_t offset,
 
 	__ASSERT(len <= dev_cfg->page_size, "Length is above page size");
 
-	k_sched_lock();
-	unsigned int key = irq_lock();
+	memcpy(dev_data->bounce_buffer, data, len);
+
+	unsigned int key = critical_section_enter(dev_data->flexspi);
 
 	flashXfer.deviceAddress = offset;
 	flashXfer.port          = dev_cfg->port;
 	flashXfer.cmdType       = kFLEXSPI_Write;
 	flashXfer.SeqNumber     = 1;
 	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_PAGEPROGRAM;
-	flashXfer.data          = (void *)data;
+	flashXfer.data          = dev_data->bounce_buffer;
 	flashXfer.dataSize      = len;
 
-	status = FLEXSPI_TransferBlocking(dev_data->base, &flashXfer);
+	status = flexspi_xfer_blocking(dev_data->flexspi, &flashXfer);
 	if (status != kStatus_Success) {
 		retval = -EIO;
 		goto done;
 	}
 
-	status = flexspi_nor_flash_wait_bus_busy(dev_data->base, dev_cfg->port);
+	status = flexspi_nor_flash_wait_bus_busy(dev_data->flexspi,
+						 dev_cfg->port);
 	if (status != kStatus_Success) {
 		retval = -EIO;
 		goto done;
 	}
 
 done:
-	irq_unlock(key);
-	k_sched_unlock();
+	flexspi_invalidate_dcache(dev_data->flexspi, offset, len);
+	critical_section_leave(dev_data->flexspi, key);
 	return retval;
 }
 
@@ -263,7 +306,6 @@ int flexspi_nor_flash_write(struct device *dev, off_t offset,
  *  I N I T
  ******************************************************************************/
 
-/* TODO: Verify if it is actually required to have this function in RAM. */
 int flexspi_nor_flash_init(struct device *dev)
 {
 	static bool lut_configured = false;
@@ -275,17 +317,14 @@ int flexspi_nor_flash_init(struct device *dev)
 	/*
 	 * FLEX SPI controller binding
 	 */
-	struct device *flexspi = device_get_binding(dev_cfg->bus_name);
-	if (!flexspi) {
+	dev_data->flexspi = device_get_binding(dev_cfg->bus_name);
+	if (!dev_data->flexspi) {
 		LOG_ERR("Failed to get FlexSPI bus for %s", dev->config->name);
 		return -ENODEV;
 	}
 
-	const struct flexspi_imx_config *bus_cfg = flexspi->config->config_info;
-	dev_data->base = bus_cfg->base;
-
-	LOG_DBG("%s bound to FlexSPI controller %s@%p",
-		dev->config->name, flexspi->config->name, dev_data->base);
+	LOG_DBG("%s bound to FlexSPI controller %s",
+		dev->config->name, dev_data->flexspi->config->name);
 
 	/*
 	 * Configure LUT
@@ -295,11 +334,20 @@ int flexspi_nor_flash_init(struct device *dev)
 		return -EPERM;
 	}
 
+	unsigned int key = critical_section_enter(dev_data->flexspi);
+
 	/* TODO: Allow configuring the LUT for more than one device. */
-	FLEXSPI_UpdateLUT(dev_data->base, 0, dev_cfg->lut, dev_cfg->lut_length);
+	flexspi_update_lut(dev_data->flexspi,
+			   0,
+			   dev_cfg->lut,
+			   dev_cfg->lut_length);
 	lut_configured = true;
 
-	FLEXSPI_SoftwareReset(dev_data->base);
+	/* TODO Check why software reset is after FLEXSPI_UpdateLUT in SDK
+	        while in AN12564 examples it is before. */
+	flexspi_sw_reset(dev_data->flexspi);
+
+	critical_section_leave(dev_data->flexspi, key);
 
 	/* TODO: Return -ENODEV if JEDEC ID is not the same as in DTS. */
 

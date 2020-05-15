@@ -81,7 +81,7 @@ static const struct flexspi_nor_flash_dev_config w25q256_config = {
 	.bus_name   = DT_INST_0_FLEXSPI_WINBOND_W25Q256_BUS_NAME,
 	.port       = DT_INST_0_FLEXSPI_WINBOND_W25Q256_BASE_ADDRESS,
 	.size       = NB_SECTOR * SECTOR_SIZE,
-	.page_size  = 256U,
+	.page_size  = DT_INST_0_FLEXSPI_WINBOND_W25Q256_PAGE_SIZE,
 	.lut        = w25q256LUT,
 	.lut_length = W25Q256_LUT_LENGTH,
 #if defined(CONFIG_FLASH_PAGE_LAYOUT)
@@ -104,7 +104,17 @@ static const struct flash_driver_api w25q256_flash_api = {
 	.write_block_size = 1,
 };
 
-static struct flexspi_nor_flash_dev_data w25q256_data;
+/* Bounce buffer is used for writing at most a full page.
+   Round the size up to be sure to have enough space. */
+static u32_t w25q256_bounce_buffer[
+	(DT_INST_0_FLEXSPI_WINBOND_W25Q256_PAGE_SIZE / sizeof(u32_t)) +
+	(DT_INST_0_FLEXSPI_WINBOND_W25Q256_PAGE_SIZE % sizeof(u32_t))
+];
+
+static struct flexspi_nor_flash_dev_data w25q256_data = {
+	.flexspi       = NULL,
+	.bounce_buffer = w25q256_bounce_buffer,
+};
 
 /* Instance of the flexspi nor flash driver for winbond W25Q256 chip */
 DEVICE_AND_API_INIT(flexspi_nor_flash_w25q256,
