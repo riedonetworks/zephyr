@@ -61,8 +61,8 @@ static ALWAYS_INLINE void critical_section_leave(struct device *flexspi,
 	/* TODO If flash is not used for executing code (XIP)
 	        this function must be a no-op. */
 
-	irq_unlock(key);
 	flexspi_ahb_prefetch(flexspi, true);
+	irq_unlock(key);
 }
 
 #define REG_STATUS_BIT_BUSY 1U
@@ -162,6 +162,7 @@ static int flexspi_nor_flash_sector_erase(struct device *dev, off_t offset)
 	}
 
 done:
+	flexspi_sw_reset(dev_data->flexspi);
 	flexspi_invalidate_dcache(dev_data->flexspi,
 				  offset,
 				  dev_cfg->pages_layout.pages_size);
@@ -249,6 +250,7 @@ static int flexspi_nor_flash_page_program(struct device *dev, off_t offset,
 	}
 
 done:
+	flexspi_sw_reset(dev_data->flexspi);
 	flexspi_invalidate_dcache(dev_data->flexspi, offset, len);
 	critical_section_leave(dev_data->flexspi, key);
 	return retval;
