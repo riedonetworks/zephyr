@@ -68,7 +68,7 @@ void flexspi_imx_ahb_prefetch(struct device *dev, bool enable)
  */
 void flexspi_imx_invalidate_dcache(struct device *dev,
 				   off_t offset,
-				   s32_t size)
+				   size_t size)
 {
 	const struct flexspi_imx_data *dev_data = dev->driver_data;
 
@@ -76,6 +76,19 @@ void flexspi_imx_invalidate_dcache(struct device *dev,
 	   a generic cache management API. */
 	SCB_InvalidateDCache_by_Addr((void *)(dev_data->mem_addr + offset),
 				     size);
+}
+
+/**
+ * Wrapper to memcpy.
+ */
+void flexspi_imx_mem_read(struct device *dev,
+			  off_t offset,
+			  void *dest,
+			  size_t size)
+{
+	const struct flexspi_imx_data *dev_data = dev->driver_data;
+
+	(void)memcpy(dest, (void *)(dev_data->mem_addr + offset), size);
 }
 
 /*******************************************************************************
@@ -93,6 +106,7 @@ static const struct flexspi_driver_api flexspi_imx_api = {
 	.xfer_blocking = flexspi_imx_xfer_blocking,
 	.ahb_prefetch = flexspi_imx_ahb_prefetch,
 	.invalidate_dcache = flexspi_imx_invalidate_dcache,
+	.mem_read = flexspi_imx_mem_read,
 };
 
 /*******************************************************************************
