@@ -1,5 +1,5 @@
-# Kconfig - Kinetis K2X MCU line
-#
+# Kinetis K2X MCU line
+
 # Copyright (c) 2018 Prevas A/S
 # Copyright (c) 2019 Thomas Burdick <thomas.burdick@gmail.com>
 
@@ -8,8 +8,8 @@
 #
 
 choice
-prompt "Kinetis K2x MCU Selection"
-depends on SOC_SERIES_KINETIS_K2X
+	prompt "Kinetis K2x MCU Selection"
+	depends on SOC_SERIES_KINETIS_K2X
 
 config SOC_MK22F51212
 	bool "SOC_MK22F51212"
@@ -69,12 +69,5 @@ config K22_FLASH_CLOCK_DIVIDER
 	help
 	  This option specifies the divide value for the K64 flash clock from the
 	  system clock.
-
-config WDOG_INIT
-	def_bool y
-	help
-	  This processor enables the watchdog timer with a short timeout
-	  upon reset. Therefore, this requires that the watchdog be configured
-	  during reset handling.
 
 endif # SOC_SERIES_KINETIS_K2X

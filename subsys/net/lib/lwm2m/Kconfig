@@ -1,8 +1,5 @@
-#
 # Copyright (c) 2017 Linaro Limited
-#
 # SPDX-License-Identifier: Apache-2.0
-#
 
 menuconfig LWM2M
 	bool "OMA LWM2M protocol stack"
@@ -35,8 +32,8 @@ config LWM2M_ENGINE_STACK_SIZE
 	default 2560 if NET_LOG
 	default 2048
 	help
-	 Set the stack size for the LWM2M library engine (used for handling
-	 OBSERVE and NOTIFY events)
+	  Set the stack size for the LWM2M library engine (used for handling
+	  OBSERVE and NOTIFY events)
 
 config LWM2M_ENGINE_MAX_MESSAGES
 	int "LWM2M engine max. message object"
@@ -199,14 +196,11 @@ config LWM2M_FIRMWARE_UPDATE_PULL_COAP_PROXY_SUPPORT
 	help
 	  Include support for pulling firmware file via a CoAP-CoAP/HTTP proxy.
 
-if LWM2M_FIRMWARE_UPDATE_PULL_COAP_PROXY_SUPPORT
-
 config LWM2M_FIRMWARE_UPDATE_PULL_COAP_PROXY_ADDR
 	string "CoAP proxy network address"
+	depends on LWM2M_FIRMWARE_UPDATE_PULL_COAP_PROXY_SUPPORT
 	help
 	  Network address of the CoAP proxy server.
-
-endif # LWM2M_FIRMWARE_UPDATE_PULL_COAP_PROXY_SUPPORT
 
 config LWM2M_RW_JSON_SUPPORT
 	bool "support for JSON writer"

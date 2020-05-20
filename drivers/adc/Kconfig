@@ -1,10 +1,7 @@
-# Kconfig - ADC configuration options
+# ADC configuration options
 
-#
 # Copyright (c) 2015 Intel Corporation
-#
 # SPDX-License-Identifier: Apache-2.0
-#
 
 #
 # ADC options
@@ -59,5 +56,7 @@ source "drivers/adc/Kconfig.sam0"
 source "drivers/adc/Kconfig.stm32"
 
 source "drivers/adc/Kconfig.xec"
+
+source "drivers/adc/Kconfig.lmp90xxx"
 
 endif # ADC

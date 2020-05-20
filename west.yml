@@ -26,30 +26,34 @@ manifest:
   #
   # Please add items below based on alphabetical order
   projects:
+    - name: canopennode
+      path: modules/lib/canopennode
+      revision: 5c6b0566d56264efd4bf23ed58bc7cb8b32fe063
     - name: ci-tools
-      revision: e01f3bce2a94847253369efb9a081f5c0e9ec882
+      revision: 0706b1e8be917b80e50be6e8cd86befe5e9deccf
       path: tools/ci-tools
     - name: civetweb
       revision: 99129c5efc907ea613c4b73ccff07581feb58a7a
       path: modules/lib/civetweb
     - name: fatfs
-      revision: df96914dd989907f3a5de4cb95b116c2f305820d
+      revision: 9ee6b9b9511151d0d64a74d532d39c6f2bbd4f16
       path: modules/fs/fatfs
     - name: lvgl
-      revision: d4708d0a432e95f51bdc712591ba5295b751140c
+      revision: 74fc2e753a997bd71cefa34dd9c56dcb954b42e2
       path: modules/lib/gui/lvgl
     - name: mbedtls
-      revision: bbcb1b14285ac1b694d8c7e47c2f139c80b7fc4c
+      revision: cf7020eb4c7ef93319f2d6d2403a21e12a879bf6
       path: modules/crypto/mbedtls
+    - name: oss/mcuboot
+      revision: f5d48aeb235890efd9bf4df32d5378739ec21139
+      path: bootloader/mcuboot
+      remote: origin
     - name: mcumgr
-      revision: 84934959d2d1722a23b7e7e200191ae4a6f96168
+      revision: d4e97cd4fc80ff949415062b1c83fd42929e8fe4
       path: modules/lib/mcumgr
     - name: net-tools
-      revision: 30b7efa827b04d2e47840716b0372737fe7d6c92
+      revision: 4bff01084d225996e4aae84b98be5969e2f9f33d
       path: tools/net-tools
-    - name: nffs
-      revision: bc62a2fa9d98ddb5d633c932ea199bc68e10f194
-      path: modules/fs/nffs
     - name: oss/hal_nxp
       revision: c8e8559e620e33715f91cce3842cb4b327703a36
       path: modules/hal/nxp
@@ -57,22 +61,27 @@ manifest:
     - name: open-amp
       revision: 9b591b289e1f37339bd038b5a1f0e6c8ad39c63a
       path: modules/lib/open-amp
+    - name: loramac-node
+      revision: 29e516ec585b1a909af2b5f1c60d83e7d4d563e3
+      path: modules/lib/loramac-node
     - name: openthread
-      revision: 3c32244f098f8daf8741efe0a2ad839b67f8567f
+      revision: 3c6191eb4e8ca44b5f4eeaa696837bce14e83c69
       path: modules/lib/openthread
     - name: segger
       revision: 6fcf61606d6012d2c44129edc033f59331e268bc
       path: modules/debug/segger
     - name: tinycbor
       path: modules/lib/tinycbor
-      revision: 6966f6140cb870b792330a5186020eb1f4151f3e
+      revision: 0fc68fceacd1efc1ce809c5880c380f3d98b7b6e
     - name: littlefs
       path: modules/fs/littlefs
       revision: fe9572dd5a9fcf93a249daa4233012692bd2881d
-    - name: oss/mcuboot
-      revision: 1917f6c748b1b53853e40e5e39c14e81e6bc4eca
-      path: bootloader/mcuboot
-      remote: origin
+    - name: mipi-sys-t
+      path: modules/debug/mipi-sys-t
+      revision: baf51863f19f009b92e762115ba5572a5b996b92
+    - name: nrf_hw_models
+      path: modules/bsim_hw_models/nrf_hw_models
+      revision: fec69703cb1ca06fcdab6d5fde01274f0fc5c759
 
   self:
     path: zephyr

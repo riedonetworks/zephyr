@@ -1,10 +1,10 @@
 # Copyright (c) 2018, Jan Van Winkel <jan.van_winkel@dxplore.eu>
+# Copyright (C) 2020, Riedo Networks
 # SPDX-License-Identifier: Apache-2.0
 
-title: ILI9340 320x240 Display Controller
+description: ILI9340 320x240 Display Controller
 
-description: >
-    This is a representation of the ILI9340 320x240 Display Controller
+  This is a representation of the ILI9340 320x240 Display Controller
 
 compatible: "ilitek,ili9340,parallel"
 

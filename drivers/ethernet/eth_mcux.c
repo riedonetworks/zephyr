@@ -906,6 +906,13 @@ static int eth_init(struct device *dev)
 	enet_config.macSpecialConfig |= kENET_ControlVLANTagEnable;
 #endif
 
+#if defined(CONFIG_ETH_MCUX_HW_ACCELERATION)
+	enet_config.txAccelerConfig |=
+		kENET_TxAccelIpCheckEnabled | kENET_TxAccelProtoCheckEnabled;
+	enet_config.rxAccelerConfig |=
+		kENET_RxAccelIpCheckEnabled | kENET_RxAccelProtoCheckEnabled;
+#endif
+
 	ENET_Init(context->base,
 		  &context->enet_handle,
 		  &enet_config,
@@ -984,8 +991,13 @@ static void eth_iface_init(struct net_if *iface)
 			     sizeof(context->mac_addr),
 			     NET_LINK_ETHERNET);
 
-	/* For VLAN, this value is only used to get the correct L2 driver */
-	context->iface = iface;
+	/* For VLAN, this value is only used to get the correct L2 driver.
+	 * The iface pointer in context should contain the main interface
+	 * if the VLANs are enabled.
+	 */
+	if (context->iface == NULL) {
+		context->iface = iface;
+	}
 
 	ethernet_init(iface);
 	net_if_flag_set(iface, NET_IF_NO_AUTO_START);
@@ -1001,6 +1013,11 @@ static enum ethernet_hw_caps eth_mcux_get_capabilities(struct device *dev)
 #if defined(CONFIG_PTP_CLOCK_MCUX)
 		ETHERNET_PTP |
 #endif
+#if defined(CONFIG_ETH_MCUX_HW_ACCELERATION)
+		ETHERNET_HW_TX_CHKSUM_OFFLOAD |
+		ETHERNET_HW_RX_CHKSUM_OFFLOAD |
+#endif
+		ETHERNET_AUTO_NEGOTIATION_SET |
 		ETHERNET_LINK_100BASE_T;
 }
 

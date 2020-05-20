@@ -4,15 +4,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <kernel_structs.h>
+#include <kernel.h>
+#include <kernel_internal.h>
 #include <arch/x86/acpi.h>
 #include <arch/x86/multiboot.h>
 
 extern FUNC_NORETURN void z_cstart(void);
 
-FUNC_NORETURN void z_x86_prep_c(int unused, struct multiboot_info *info)
+/* Early global initialization functions, C domain. This runs only on the first
+ * CPU for SMP systems.
+ */
+FUNC_NORETURN void z_x86_prep_c(void *arg)
 {
-	ARG_UNUSED(unused);
+	struct multiboot_info *info = arg;
 
 	_kernel.cpus[0].nested = 0;
 	_kernel.cpus[0].irq_stack = Z_THREAD_STACK_BUFFER(_interrupt_stack) +

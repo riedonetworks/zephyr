@@ -1,5 +1,5 @@
-# Kconfig - IMX M4 Core SDK
-#
+# IMX M4 Core SDK
+
 # Copyright (c) 2018, NXP
 # SPDX-License-Identifier: Apache-2.0
 
@@ -9,16 +9,6 @@ config HAS_IMX_HAL
 	depends on SOC_FAMILY_IMX
 
 if HAS_IMX_HAL
-
-config HAS_IMX_RDC
-	bool
-	help
-	  Set if the RDC module is present in the SoC.
-
-config HAS_IMX_CCM
-	bool
-	help
-	  Set if the CCM module is present in the SoC.
 
 config HAS_IMX_GPIO
 	bool
