@@ -6,6 +6,12 @@
 
 #include <drivers/flexspi.h>
 
+#define LOG_MODULE_NAME flexspi_imx
+/* Use CONFIG_FLASH_LOG_LEVEL until a FLEXSPI one is created. */
+#define LOG_LEVEL CONFIG_FLASH_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_REGISTER(LOG_MODULE_NAME);
+
 struct flexspi_imx_data {
 	/** Base address of the FlexSPI controller. */
 	FLEXSPI_Type * const base;
@@ -26,6 +32,16 @@ void flexspi_imx_update_lut(struct device *dev, unsigned int index,
 	const struct flexspi_imx_data *dev_data = dev->driver_data;
 
 	FLEXSPI_UpdateLUT(dev_data->base, index, cmd, count);
+
+#if CONFIG_FLASH_LOG_LEVEL >= 4
+	volatile u32_t *lut = dev_data->base->LUT;
+
+	for (size_t i = 0; i < 16; i++) {
+		LOG_DBG("%s LUT %02d: 0x%08x 0x%08x 0x%08x 0x%08x",
+			dev->config->name, i, lut[0], lut[1], lut[2], lut[3]);
+		lut += 4;
+	}
+#endif
 }
 
 /**

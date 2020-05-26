@@ -354,18 +354,10 @@ int flexspi_nor_flash_init(struct device *dev)
 	/* TODO: Return -ENODEV if JEDEC ID is not the same as in DTS. */
 
 #if CONFIG_FLASH_LOG_LEVEL >= 4
-	volatile u32_t *lut = dev_data->base->LUT;
-
-	for (size_t i = 0; i < 16; i++) {
-		LOG_DBG("%s LUT %02d: 0x%08x 0x%08x 0x%08x 0x%08x",
-			dev->config->name, i, lut[0], lut[1], lut[2], lut[3]);
-		lut += 4;
-	}
-
 	u8_t reg[3];
 	status_t status;
 
-	status = flexspi_nor_flash_get_reg(dev_data->base, dev_cfg->port,
+	status = flexspi_nor_flash_get_reg(dev_data->flexspi, dev_cfg->port,
 		NOR_CMD_LUT_SEQ_IDX_READJEDECID, reg, 3);
 	if (status != kStatus_Success) {
 		LOG_WRN("Reading JEDEC ID failed (0x%x)", status);
@@ -374,7 +366,7 @@ int flexspi_nor_flash_init(struct device *dev)
 			reg[0], reg[1], reg[2]);
 	}
 
-	status = flexspi_nor_flash_get_reg(dev_data->base, dev_cfg->port,
+	status = flexspi_nor_flash_get_reg(dev_data->flexspi, dev_cfg->port,
 		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG, reg, 1);
 	if (status != kStatus_Success) {
 		LOG_WRN("Reading status register 1 failed (0x%x)", status);
@@ -382,7 +374,7 @@ int flexspi_nor_flash_init(struct device *dev)
 		LOG_DBG("Status register 1 0x%02x", reg[0]);
 	}
 
-	status = flexspi_nor_flash_get_reg(dev_data->base, dev_cfg->port,
+	status = flexspi_nor_flash_get_reg(dev_data->flexspi, dev_cfg->port,
 		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG2, reg, 1);
 	if (status != kStatus_Success) {
 		LOG_WRN("Reading status register 2 failed (0x%x)", status);
@@ -390,7 +382,7 @@ int flexspi_nor_flash_init(struct device *dev)
 		LOG_DBG("Status register 2 0x%02x", reg[0]);
 	}
 
-	status = flexspi_nor_flash_get_reg(dev_data->base, dev_cfg->port,
+	status = flexspi_nor_flash_get_reg(dev_data->flexspi, dev_cfg->port,
 		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG3, reg, 1);
 	if (status != kStatus_Success) {
 		LOG_WRN("Reading status register 3 failed (0x%x)", status);
