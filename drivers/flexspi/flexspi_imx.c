@@ -6,6 +6,12 @@
 
 #include <drivers/flexspi.h>
 
+#define LOG_MODULE_NAME flexspi_imx
+/* Use CONFIG_FLASH_LOG_LEVEL until a FLEXSPI one is created. */
+#define LOG_LEVEL CONFIG_FLASH_LOG_LEVEL
+#include <logging/log.h>
+LOG_MODULE_REGISTER(LOG_MODULE_NAME);
+
 struct flexspi_imx_data {
 	/** Base address of the FlexSPI controller. */
 	FLEXSPI_Type * const base;
@@ -26,6 +32,16 @@ void flexspi_imx_update_lut(struct device *dev, unsigned int index,
 	const struct flexspi_imx_data *dev_data = dev->driver_data;
 
 	FLEXSPI_UpdateLUT(dev_data->base, index, cmd, count);
+
+#if CONFIG_FLASH_LOG_LEVEL >= 4
+	volatile u32_t *lut = dev_data->base->LUT;
+
+	for (size_t i = 0; i < 16; i++) {
+		LOG_DBG("%s LUT %02d: 0x%08x 0x%08x 0x%08x 0x%08x",
+			dev->config->name, i, lut[0], lut[1], lut[2], lut[3]);
+		lut += 4;
+	}
+#endif
 }
 
 /**
@@ -68,7 +84,7 @@ void flexspi_imx_ahb_prefetch(struct device *dev, bool enable)
  */
 void flexspi_imx_invalidate_dcache(struct device *dev,
 				   off_t offset,
-				   s32_t size)
+				   size_t size)
 {
 	const struct flexspi_imx_data *dev_data = dev->driver_data;
 
@@ -76,6 +92,19 @@ void flexspi_imx_invalidate_dcache(struct device *dev,
 	   a generic cache management API. */
 	SCB_InvalidateDCache_by_Addr((void *)(dev_data->mem_addr + offset),
 				     size);
+}
+
+/**
+ * Wrapper to memcpy.
+ */
+void flexspi_imx_mem_read(struct device *dev,
+			  off_t offset,
+			  void *dest,
+			  size_t size)
+{
+	const struct flexspi_imx_data *dev_data = dev->driver_data;
+
+	(void)memcpy(dest, (void *)(dev_data->mem_addr + offset), size);
 }
 
 /*******************************************************************************
@@ -93,6 +122,7 @@ static const struct flexspi_driver_api flexspi_imx_api = {
 	.xfer_blocking = flexspi_imx_xfer_blocking,
 	.ahb_prefetch = flexspi_imx_ahb_prefetch,
 	.invalidate_dcache = flexspi_imx_invalidate_dcache,
+	.mem_read = flexspi_imx_mem_read,
 };
 
 /*******************************************************************************

@@ -41,7 +41,12 @@ typedef void (*flexspi_api_ahb_prefetch)(struct device *dev, bool enable);
 
 typedef void (*flexspi_api_invalidate_dcache)(struct device *dev,
 					      off_t offset,
-					      s32_t size);
+					      size_t size);
+
+typedef void (*flexspi_api_mem_read)(struct device *dev,
+				     off_t offset,
+				     void *dest,
+				     size_t size);
 
 /**
  * @brief FlexSPI driver API.
@@ -53,6 +58,7 @@ struct flexspi_driver_api {
 	flexspi_api_xfer_blocking xfer_blocking;
 	flexspi_api_ahb_prefetch ahb_prefetch;
 	flexspi_api_invalidate_dcache invalidate_dcache;
+	flexspi_api_mem_read mem_read;
 };
 
 /*
@@ -134,6 +140,24 @@ static inline void flexspi_invalidate_dcache(struct device *dev,
 	const struct flexspi_driver_api *api = dev->driver_api;
 
 	api->invalidate_dcache(dev, offset, size);
+}
+
+/**
+ * @brief Read data from the FlexSPI bus using AHB access.
+ *
+ * @param dev FlexSPI device.
+ * @param offset Offset of the data in the FlexSPI memory map.
+ * @param dest Where to store the data.
+ * @param size Number of bytes to read.
+ */
+static inline void flexspi_mem_read(struct device *dev,
+				    off_t offset,
+				    void *dest,
+				    size_t size)
+{
+	const struct flexspi_driver_api *api = dev->driver_api;
+
+	api->mem_read(dev, offset, dest, size);
 }
 
 #endif /* ZEPHYR_INCLUDE_DRIVERS_FLEXSPI_H_ */
