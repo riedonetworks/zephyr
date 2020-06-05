@@ -11,6 +11,7 @@
 #include <drivers/uart.h>
 #include <drivers/clock_control.h>
 #include <fsl_flexio_uart.h>
+#include <fsl_cache.h>
 #ifdef CONFIG_UART_ASYNC_API
 // #include <fsl_flexio_uart_edma.h>
 #include <fsl_dmamux.h>
@@ -115,7 +116,7 @@ static bool  mcux_flexio_uartnotify_rx_processed(struct mcux_flexio_uart_data *d
 	if (!dev_data->async_cb) {
 		return true;
 	}
-
+	L1CACHE_InvalidateDCacheByRange((uint32_t)dev_data->rx_xfer.data+dev_data->rx_processed_len,  processed - dev_data->rx_processed_len);
 	struct uart_event evt = {
 		.type = UART_RX_RDY,
 		.data.rx = {
@@ -409,10 +410,13 @@ static int mcux_flexio_uart_tx(struct device *dev, const u8_t *buf, size_t len,
 		data->tx_xfer.dataSize, data->tx_xfer.data
 		);
 
+
 	if (timeout != K_FOREVER) {
 		//LOG_DBG("Setting timeout of %d", timeout);
 		k_delayed_work_submit_to_queue(&uart_mcux_flexio_work_q, &data->tx_timeout_work, timeout);
 	}
+
+	L1CACHE_CleanDCacheByRange((uint32_t)buf, len);
 
 	edma_transfer_config_t xferConfig;
 	EDMA_PrepareTransfer(&xferConfig,
@@ -424,6 +428,7 @@ static int mcux_flexio_uart_tx(struct device *dev, const u8_t *buf, size_t len,
 			     data->tx_xfer.dataSize,
 			     kEDMA_MemoryToPeripheral);
 
+	L1CACHE_CleanDCacheByRange((uint32_t)&xferConfig, sizeof(xferConfig));
 	EDMA_SubmitTransfer(&data->tx_dma_handle, &xferConfig);
 	EDMA_StartTransfer(&data->tx_dma_handle);
 	FLEXIO_UART_EnableTxDMA(config->base, true);
@@ -499,6 +504,7 @@ static int mcux_flexio_uart_rx_enable(struct device *dev, u8_t *buf, size_t len,
 			     data->rx_xfer.dataSize,
 			     kEDMA_PeripheralToMemory);
 
+	L1CACHE_CleanDCacheByRange((uint32_t)&xferConfig, sizeof(xferConfig));
 	EDMA_SubmitTransfer(&data->rx_dma_handle, &xferConfig);
 	EDMA_StartTransfer(&data->rx_dma_handle);
 	FLEXIO_UART_EnableRxDMA(config->base, true);
@@ -857,6 +863,7 @@ static void mcux_flexio_uart_isr(void *arg)
 			if (data->rx_next_xfer.dataSize != 0U) {
 				//LOG_DBG("ISR: Loading DMA");
 				edma_transfer_config_t xferConfig;
+				L1CACHE_CleanDCacheByRange((uint32_t)data->rx_next_xfer.data, data->rx_next_xfer.dataSize);
 				EDMA_PrepareTransfer(&xferConfig,
 						     (void *)FLEXIO_UART_GetRxDataRegisterAddress(data->cfg->base),
 						     sizeof(uint8_t),
@@ -866,6 +873,7 @@ static void mcux_flexio_uart_isr(void *arg)
 						     data->rx_next_xfer.dataSize,
 						     kEDMA_PeripheralToMemory);
 
+				L1CACHE_CleanDCacheByRange((uint32_t)&xferConfig, sizeof(xferConfig));
 				status_t s = EDMA_SubmitTransfer(&data->rx_dma_handle, &xferConfig);
 				if (s != kStatus_Success) {
 					LOG_ERR("Failed EDMA_SubmitTransfer()=%d", s);
