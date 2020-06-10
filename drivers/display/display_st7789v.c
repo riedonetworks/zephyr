@@ -88,7 +88,7 @@ static void st7789v_set_cmd(struct st7789v_data *data, int is_cmd)
 	gpio_pin_set(data->cmd_data_gpio, ST7789V_CMD_DATA_PIN, is_cmd);
 }
 
-static void st7789v_transmit(struct st7789v_data *data, u8_t cmd,
+void st7789v_transmit(struct st7789v_data *data, u8_t cmd,
 		u8_t *tx_data, size_t tx_count)
 {
 	struct spi_buf tx_buf = { .buf = &cmd, .len = 1 };
@@ -279,7 +279,8 @@ static int st7789v_set_orientation(const struct device *dev,
 	return -ENOTSUP;
 }
 
-static void st7789v_lcd_init(struct st7789v_data *p_st7789v)
+#ifdef CONFIG_ST7789V_LCD_TL019FQV01
+void st7789v_lcd_init(struct st7789v_data *p_st7789v)
 {
 	u8_t tmp;
 
@@ -348,6 +349,7 @@ static void st7789v_lcd_init(struct st7789v_data *p_st7789v)
 	st7789v_transmit(p_st7789v, ST7789V_CMD_RGBCTRL, st7789v_rgb_param,
 			 sizeof(st7789v_rgb_param));
 }
+#endif /* CONFIG_ST7789V_LCD_TL019FQV01 */
 
 static int st7789v_init(struct device *dev)
 {

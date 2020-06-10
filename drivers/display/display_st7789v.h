@@ -67,4 +67,17 @@
 #define ST7789V_CMD_PVGAMCTRL			0xe0
 #define ST7789V_CMD_NVGAMCTRL			0xe1
 
-#endif
+struct st7789v_data;
+
+/**
+ * Send data to ST7789v display controller
+ */
+void st7789v_transmit(struct st7789v_data *data, u8_t cmd, u8_t *tx_data,
+		      size_t tx_count);
+
+/**
+ * Perform LCD specific initialization
+ */
+void st7789v_lcd_init(struct st7789v_data *data);
+
+#endif /* ST7789V_DISPLAY_DRIVER_H__ */
