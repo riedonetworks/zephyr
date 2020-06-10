@@ -124,6 +124,11 @@ static void ili9340_write_cmd_byte(struct ili9340_data *data, u8_t cmd)
 
 }
 
+/* Use one of the define below to work around the problem with
+ * cache management. */
+#define NO_64BIT_ACCESS 1
+#define USE_IRQ_LOCK 0
+
 static void ili9340_write_data(struct ili9340_data *data, void *tx_data, int tx_len)
 {
 	int result;
@@ -151,13 +156,16 @@ static void ili9340_write_data(struct ili9340_data *data, void *tx_data, int tx_
 		}
 	}
 
+#if !NO_64BIT_ACCESS
 	// Switch to 64bit AXI bus
 	u64_t* data_ptr64 = (u64_t*)data_ptr8;
 
 	if( tx_len > sizeof(u64_t))
 	{
 		LOG_DBG("Writing %d bytes over AXI bus", tx_len);
-		
+#if USE_IRQ_LOCK
+		int key = irq_lock();
+#endif
 		SCB_DisableDCache();
 		__DMB();
 		while(tx_len > sizeof(u64_t))
@@ -167,17 +175,29 @@ static void ili9340_write_data(struct ili9340_data *data, void *tx_data, int tx_
 			tx_len -= sizeof(u64_t);
 		}
 		SCB_EnableDCache();
+#if USE_IRQ_LOCK
+		irq_unlock(key);
+#endif
 	}
+#endif /* !NO_64BIT_ACCESS */
 
 	// If required, finish on IP bus
 	if (tx_len)
 	{
 		LOG_DBG("Writing %d bytes over IP bus", tx_len);
 		// Send out, 8 bit mode
+#if !NO_64BIT_ACCESS
 		u8_t* data_ptr8 = (u8_t*)data_ptr64;
+#endif
 		while(tx_len)
 		{
-			result = SEMC_SendIPCommand(SEMC, kSEMC_MemType_8080, (uint32_t)data->data_reg, kSEMC_NORDBICM_Write, *data_ptr8++, NULL);
+			result = SEMC_SendIPCommand(
+				SEMC, kSEMC_MemType_8080,
+				(uint32_t)data->data_reg,
+				kSEMC_NORDBICM_Write,
+				*data_ptr8++,
+				NULL
+			);
 			if (result != kStatus_Success)
 			{
 				LOG_ERR("Error on IPCommand!");
@@ -188,10 +208,8 @@ static void ili9340_write_data(struct ili9340_data *data, void *tx_data, int tx_
 			}
 		}
 	}
-
 }
-
-#endif
+#endif /* CONFIG_ILI9340_PARALLEL */
 
 static int ili9340_init(struct device *dev)
 {
@@ -530,7 +548,10 @@ void ili9340_transmit(struct ili9340_data *data, u8_t cmd, void *tx_data,
 	//SEMC_IPCommandNorWrite(SEMC, data->data_reg, tx_data, tx_len);
 	
 	ili9340_write_cmd_byte(data, cmd);
-	ili9340_write_data(data, tx_data, tx_len);
+	if (tx_data != NULL) {
+		/* TODO Assert tx_len == 0 */
+		ili9340_write_data(data, tx_data, tx_len);
+	}
 #endif
 }
 
