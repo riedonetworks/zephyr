@@ -8,9 +8,9 @@ zephyr_sources_ifdef(CONFIG_SDL_DISPLAY		display_sdl.c)
 zephyr_sources_ifdef(CONFIG_DUMMY_DISPLAY	display_dummy.c)
 zephyr_sources_ifdef(CONFIG_FRAMEBUF_DISPLAY	display_framebuf.c)
 zephyr_sources_ifdef(CONFIG_ILI9340_SPI		display_ili9340.c)
-zephyr_sources_ifdef(CONFIG_ILI9340_SEMC	display_ili9340_semc.c)
+zephyr_sources_ifdef(CONFIG_ILI9340_PARALLEL	display_ili9340_semc.c)
 zephyr_sources_ifdef(CONFIG_ST7789V_SPI		display_st7789v.c)
-zephyr_sources_ifdef(CONFIG_ST7789V_SEMC	display_st7789v_semc.c)
+zephyr_sources_ifdef(CONFIG_ST7789V_PARALLEL	display_st7789v_semc.c)
 zephyr_sources_ifdef(CONFIG_GD7965		gd7965.c)
 
 zephyr_sources_ifdef(CONFIG_MICROBIT_DISPLAY
@@ -25,11 +25,9 @@ zephyr_sources_ifdef(CONFIG_ILI9340_LCD_SEEED_TFTV2
 	display_ili9340_seeed_tftv2.c
 )
 
-
 zephyr_sources_ifdef(CONFIG_ILI9340_LCD_WINSTAR_WF24LTYAJDNN0
 	display_ili9340_WF24LTYAJDNN0.c
 )
-
 
 zephyr_sources_ifdef(CONFIG_ILI9340_LCD_TIANMA_TM024HDH49
 	display_ili9340_TM024HDH49.c
