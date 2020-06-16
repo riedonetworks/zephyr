@@ -265,7 +265,7 @@ static int mcux_flex_io_uart_tx_halt(struct mcux_flexio_uart_data *data)
 
 	irq_unlock(key);
 
-
+	L1CACHE_InvalidateDCacheByRange((uint32_t)data->tcd_pool, sizeof(data->tcd_pool));
 	size_t sent_count = tx_active -	\
 			    EDMA_GetRemainingMajorLoopCount(data->tx_dma_handle.base,
 							    data->tx_dma_handle.channel);
@@ -305,6 +305,7 @@ static void mcux_flex_io_uart_rx_timeout(struct k_work *work)
 		return;
 	}
 
+	L1CACHE_InvalidateDCacheByRange((uint32_t)data->tcd_pool, sizeof(data->tcd_pool));
 	size_t pending_length = data->rx_xfer.dataSize -
 				EDMA_GetRemainingMajorLoopCount(data->rx_dma_handle.base,
 								data->rx_dma_handle.channel);
@@ -430,6 +431,7 @@ static int mcux_flexio_uart_tx(struct device *dev, const u8_t *buf, size_t len,
 
 	L1CACHE_CleanDCacheByRange((uint32_t)&xferConfig, sizeof(xferConfig));
 	EDMA_SubmitTransfer(&data->tx_dma_handle, &xferConfig);
+	L1CACHE_CleanDCacheByRange((uint32_t)&data->tx_dma_handle, sizeof(data->tx_dma_handle));
 	EDMA_StartTransfer(&data->tx_dma_handle);
 	FLEXIO_UART_EnableTxDMA(config->base, true);
 
@@ -506,6 +508,7 @@ static int mcux_flexio_uart_rx_enable(struct device *dev, u8_t *buf, size_t len,
 
 	L1CACHE_CleanDCacheByRange((uint32_t)&xferConfig, sizeof(xferConfig));
 	EDMA_SubmitTransfer(&data->rx_dma_handle, &xferConfig);
+	L1CACHE_CleanDCacheByRange((uint32_t)&data->rx_dma_handle, sizeof(data->rx_dma_handle));
 	EDMA_StartTransfer(&data->rx_dma_handle);
 	FLEXIO_UART_EnableRxDMA(config->base, true);
 
@@ -581,6 +584,7 @@ static int mcux_flexio_uart_rx_disable(struct device *dev)
 	}
 
 	// Notify for the data already received!
+	L1CACHE_CleanInvalidateDCacheByRange((uint32_t)data->tcd_pool, sizeof(data->tcd_pool));
 	size_t pending_length = data->rx_xfer.dataSize -
 				EDMA_GetRemainingMajorLoopCount(data->rx_dma_handle.base,
 								data->rx_dma_handle.channel);
@@ -863,7 +867,7 @@ static void mcux_flexio_uart_isr(void *arg)
 			if (data->rx_next_xfer.dataSize != 0U) {
 				//LOG_DBG("ISR: Loading DMA");
 				edma_transfer_config_t xferConfig;
-				L1CACHE_CleanDCacheByRange((uint32_t)data->rx_next_xfer.data, data->rx_next_xfer.dataSize);
+				//L1CACHE_CleanDCacheByRange((uint32_t)data->rx_next_xfer.data, data->rx_next_xfer.dataSize);
 				EDMA_PrepareTransfer(&xferConfig,
 						     (void *)FLEXIO_UART_GetRxDataRegisterAddress(data->cfg->base),
 						     sizeof(uint8_t),
@@ -874,6 +878,7 @@ static void mcux_flexio_uart_isr(void *arg)
 						     kEDMA_PeripheralToMemory);
 
 				L1CACHE_CleanDCacheByRange((uint32_t)&xferConfig, sizeof(xferConfig));
+				L1CACHE_CleanDCacheByRange((uint32_t)&data->rx_dma_handle, sizeof(data->rx_dma_handle));
 				status_t s = EDMA_SubmitTransfer(&data->rx_dma_handle, &xferConfig);
 				if (s != kStatus_Success) {
 					LOG_ERR("Failed EDMA_SubmitTransfer()=%d", s);
@@ -1077,6 +1082,8 @@ static int mcux_flexio_uart_init(struct device *dev)
 	EDMA_CreateHandle(&data->rx_dma_handle, DMA0, config->rx_dma_channel);
 	EDMA_SetCallback(&data->rx_dma_handle, mcux_flexio_uart_dma_rx_cb, data);
 
+	L1CACHE_CleanDCacheByRange((uint32_t)&data->rx_dma_handle, sizeof(data->rx_dma_handle));
+	L1CACHE_CleanDCacheByRange((uint32_t)&data->tcd_pool, sizeof(data->tcd_pool));
 	EDMA_InstallTCDMemory(&data->rx_dma_handle, data->tcd_pool, TCD_QUEUE_SIZE);
 
 	uint32_t dma_error_flags = EDMA_GetErrorStatusFlags(DMA0);
