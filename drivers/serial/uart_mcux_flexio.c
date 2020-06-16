@@ -1183,7 +1183,7 @@ static const struct mcux_flexio_uart_config mcux_flexio_uart_0_config = {
 #endif
 };
 
-static __nocache struct mcux_flexio_uart_data mcux_flexio_uart_0_data;
+static __dtcm_data_section struct mcux_flexio_uart_data mcux_flexio_uart_0_data ;
 
 DEVICE_AND_API_INIT(flexio_uart_0, DT_INST_0_NXP_IMXRT_FLEXIO_UART_LABEL,
 		    &mcux_flexio_uart_init,
@@ -1222,10 +1222,10 @@ static void mcux_flexio_uart_config_func_0(struct device *dev)
 #ifdef CONFIG_UART_MCUX_FLEXIO_UART_2
 
 #if defined(CONFIG_UART_INTERRUPT_DRIVEN) || defined(CONFIG_UART_ASYNC_API)
-static void mcux_flexio_uart_config_func_1(struct device *dev);
+static  void mcux_flexio_uart_config_func_1(struct device *dev);
 #endif
 
-static __nocache FLEXIO_UART_Type uart_1_flexio_config = {
+static FLEXIO_UART_Type uart_1_flexio_config = {
 
 	.flexioBase = FLEXIO2,
 	.TxPinIndex = DT_INST_1_NXP_IMXRT_FLEXIO_UART_TXD_SIGNAL,
@@ -1263,7 +1263,7 @@ static const struct mcux_flexio_uart_config mcux_flexio_uart_1_config = {
 #endif
 };
 
-static struct mcux_flexio_uart_data mcux_flexio_uart_1_data;
+static __dtcm_data_section struct mcux_flexio_uart_data mcux_flexio_uart_1_data;
 
 DEVICE_AND_API_INIT(flexio_uart_1, DT_INST_1_NXP_IMXRT_FLEXIO_UART_LABEL,
 		    &mcux_flexio_uart_init,
