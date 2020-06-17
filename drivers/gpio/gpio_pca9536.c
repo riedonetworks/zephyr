@@ -205,20 +205,6 @@ static int setup_pin_dir(struct device *dev, u32_t pin, int flags)
 }
 
 /**
- * @brief Setup the pin pull up/pull down status
- *
- * @param dev Device struct of the PCA9536
- * @param pin The pin number
- * @param flags Flags of pin or port
- *
- * @return 0 if successful, failed otherwise
- */
-static int setup_pin_pullupdown(struct device *dev, u32_t pin, int flags)
-{
-	return -ENOTSUP;
-}
-
-/**
  * @brief Configure pin or port
  *
  * @param dev Device struct of the PCA9536
