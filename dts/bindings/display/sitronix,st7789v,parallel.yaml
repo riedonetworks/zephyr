@@ -2,9 +2,7 @@
 # Copyright (C) 2020, Riedo Networks
 # SPDX-License-Identifier: Apache-2.0
 
-description: ST7789V 320x240 Display Controller
-
-  This is a representation of the ST7789V 320x240 Display Controller
+description: ST7789V 320x240 display controller
 
 compatible: "sitronix,st7789v,parallel"
 
@@ -14,10 +12,16 @@ properties:
     reset-gpios:
       type: phandle-array
       required: true
+      description: RESET pin.
+
+        The RESET pin of ST7789V is active low.
+        If connected directly the MCU pin should be configured
+        as active low.
 
     blon-gpios:
       type: phandle-array
       required: true
+      description: Backlight ON pin.
 
     height:
       type: int
