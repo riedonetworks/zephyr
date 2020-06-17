@@ -9,5 +9,5 @@ zephyr_library()
 zephyr_library_sources_ifdef(CONFIG_FLEXSPI_IMX flexspi_imx.c)
 
 if(CONFIG_FLEXSPI_NOR_FLASH)
-  zephyr_code_relocate(flexspi_imx.c SRAM)
+  zephyr_code_relocate(flexspi_imx.c ITCM_TEXT DTCM_DATA DTCM_BSS)
 endif()
