@@ -55,7 +55,7 @@ manifest:
       revision: 4bff01084d225996e4aae84b98be5969e2f9f33d
       path: tools/net-tools
     - name: oss/hal_nxp
-      revision: bf9780c03b17bc05f85a1287df54ffbcf4f0e4fb
+      revision: b2fbfedb491615a6fc7149b08df316e1887dc26e
       path: modules/hal/nxp
       remote: origin
     - name: open-amp
