@@ -23,7 +23,7 @@ zephyr_library_sources_ifdef(CONFIG_FLEXSPI_NOR_FLASH
 )
 
 if(CONFIG_FLEXSPI_NOR_FLASH)
-  zephyr_code_relocate(flexspi_nor_flash_ram_func.c SRAM)
+  zephyr_code_relocate(flexspi_nor_flash_ram_func.c ITCM_TEXT DTCM_DATA DTCM_BSS)
 endif()
 
 if(CONFIG_SOC_FLASH_STM32)
