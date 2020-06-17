@@ -178,6 +178,8 @@ static int setup_pin_dir(struct device *dev, u32_t pin, int flags)
 	u8_t reg_out = drv_data->reg_cache.output;
 	int ret;
 
+	__ASSERT(pin < 4, "Only 4 pin are suppored on PCA9536");
+
 	/* For each pin, 0 == output, 1 == input */
 	if ((flags & GPIO_OUTPUT) != 0U) {
 		if ((flags & GPIO_OUTPUT_INIT_HIGH) != 0U) {
@@ -284,7 +286,7 @@ static int gpio_pca9536_port_set_masked_raw(struct device *dev,
 {
 	struct gpio_pca9536_drv_data * const drv_data =
 		(struct gpio_pca9536_drv_data * const)dev->driver_data;
-	u16_t reg_out;
+	u8_t reg_out;
 	int ret;
 
 	/* Can't do I2C bus operations from an ISR */
@@ -318,7 +320,7 @@ static int gpio_pca9536_port_toggle_bits(struct device *dev, u32_t mask)
 {
 	struct gpio_pca9536_drv_data * const drv_data =
 		(struct gpio_pca9536_drv_data * const)dev->driver_data;
-	u16_t reg_out;
+	u8_t reg_out;
 	int ret;
 
 	/* Can't do I2C bus operations from an ISR */
