@@ -32,8 +32,6 @@ LOG_MODULE_REGISTER(gpio_pca9536);
 #define REG_CONF_PORT		0x03
 
 
-/* Driver flags */
-#define PCA_HAS_PUD			BIT(0)
 
 /** Configuration data */
 struct gpio_pca9536_config {
@@ -58,10 +56,8 @@ struct gpio_pca9536_drv_data {
 	struct device *i2c_master;
 
 	struct {
-		u16_t output;
-		u16_t dir;
-		u16_t pud_en;
-		u16_t pud_sel;
+		u8_t output;
+		u8_t dir;
 	} reg_cache;
 
 	struct k_sem lock;
@@ -118,7 +114,7 @@ static int read_port_regs(struct device *dev, u8_t reg, u8_t *buf)
  * @return 0 if successful, failed otherwise.
  */
 static int write_port_regs(struct device *dev, u8_t reg,
-			   u16_t *cache, u8_t value)
+			   u8_t *cache, u8_t value)
 {
 	const struct gpio_pca9536_config * const config =
 		dev->config->config_info;
@@ -146,7 +142,7 @@ static int write_port_regs(struct device *dev, u8_t reg,
 	return ret;
 }
 
-static inline int update_output_regs(struct device *dev, u16_t value)
+static inline int update_output_regs(struct device *dev, u8_t value)
 {
 	struct gpio_pca9536_drv_data * const drv_data =
 		(struct gpio_pca9536_drv_data * const)dev->driver_data;
@@ -155,7 +151,7 @@ static inline int update_output_regs(struct device *dev, u16_t value)
 			       &drv_data->reg_cache.output, value);
 }
 
-static inline int update_direction_regs(struct device *dev, u16_t value)
+static inline int update_direction_regs(struct device *dev, u8_t value)
 {
 	struct gpio_pca9536_drv_data * const drv_data =
 		(struct gpio_pca9536_drv_data * const)dev->driver_data;
@@ -178,8 +174,8 @@ static int setup_pin_dir(struct device *dev, u32_t pin, int flags)
 {
 	struct gpio_pca9536_drv_data * const drv_data =
 		(struct gpio_pca9536_drv_data * const)dev->driver_data;
-	u16_t reg_dir = drv_data->reg_cache.dir;
-	u16_t reg_out = drv_data->reg_cache.output;
+	u8_t reg_dir = drv_data->reg_cache.dir;
+	u8_t reg_out = drv_data->reg_cache.output;
 	int ret;
 
 	/* For each pin, 0 == output, 1 == input */
@@ -397,10 +393,8 @@ static const struct gpio_pca9536_config gpio_pca9536_##inst##_cfg = {	\
 };									\
 									\
 static struct gpio_pca9536_drv_data gpio_pca9536_##inst##_drvdata = {	\
-	.reg_cache.output = 0xFFFF,					\
-	.reg_cache.dir = 0xFFFF,					\
-	.reg_cache.pud_en = 0x0,					\
-	.reg_cache.pud_sel = 0xFFFF,					\
+	.reg_cache.output = 0xFF,					\
+	.reg_cache.dir = 0xFF,					\
 };									\
 									\
 DEVICE_AND_API_INIT(gpio_pca9536_##inst,				\
