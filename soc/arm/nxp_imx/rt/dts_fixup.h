@@ -143,4 +143,7 @@
 #define DT_VIDEO_MCUX_CSI_NAME			DT_NXP_IMX_CSI_402BC000_LABEL
 #define DT_VIDEO_MCUX_CSI_SENSOR_NAME		DT_NXP_IMX_CSI_402BC000_SENSOR_LABEL
 
+// Define Tight coupled memories addresses
+#define ITCM_ADDR (DT_INST_0_NXP_IMX_ITCM_BASE_ADDRESS)
+
 /* End of SoC Level DTS fixup file */
