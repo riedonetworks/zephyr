@@ -179,7 +179,7 @@ static int setup_pin_dir(struct device *dev, u32_t pin, int flags)
 	u8_t reg_out = drv_data->reg_cache.output;
 	int ret;
 
-	__ASSERT(pin < 4, "Only 4 pin are suppored on PCA9536");
+	__ASSERT(pin < 4, "Only 4 pin are supported on PCA9536");
 
 	/* For each pin, 0 == output, 1 == input */
 	if ((flags & GPIO_OUTPUT) != 0U) {
