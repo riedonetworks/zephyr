@@ -1,6 +1,7 @@
 # PCA95XX GPIO configuration options
 
 # Copyright (c) 2016 Intel Corporation
+# Copyright (C) 2020, Riedo Networks Ltd
 # SPDX-License-Identifier: Apache-2.0
 
 menuconfig GPIO_PCA9536
