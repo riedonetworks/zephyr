@@ -116,7 +116,7 @@ static bool  mcux_flexio_uartnotify_rx_processed(struct mcux_flexio_uart_data *d
 	if (!dev_data->async_cb) {
 		return true;
 	}
-	L1CACHE_InvalidateDCacheByRange((uint32_t)dev_data->rx_xfer.data+dev_data->rx_processed_len,  processed - dev_data->rx_processed_len);
+	L1CACHE_InvalidateDCacheByRange((uint32_t)dev_data->rx_xfer.data + dev_data->rx_processed_len, processed - dev_data->rx_processed_len);
 	struct uart_event evt = {
 		.type = UART_RX_RDY,
 		.data.rx = {
