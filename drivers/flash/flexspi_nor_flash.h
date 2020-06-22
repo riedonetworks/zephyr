@@ -2,7 +2,6 @@
  * Copyright (c) 2020 Riedo Networks Ltd.
  *
  * SPDX-License-Identifier: BSD-3-Clause
- *
  */
 
 #ifndef ZEPHYR_DRIVERS_FLEXSPI_NOR_FLASH_H_

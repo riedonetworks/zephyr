@@ -2,7 +2,6 @@
  * Copyright (c) 2020 Riedo Networks Ltd.
  *
  * SPDX-License-Identifier: BSD-3-Clause
- *
  */
 
 #include "flexspi_nor_flash.h"
@@ -71,7 +70,7 @@ static const u32_t w25q256LUT[W25Q256_LUT_LENGTH] = {
 	),
 };
 #else
-#error SPI access mode not supported by FlexSPI winbond W25Q128 driver
+#error SPI access mode not supported by FlexSPI winbond W25Q256 driver
 #endif
 
 #define NB_SECTOR    (8U * 1024U)
