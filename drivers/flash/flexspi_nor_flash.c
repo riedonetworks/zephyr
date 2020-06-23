@@ -53,7 +53,7 @@ int flexspi_nor_flash_write_protection_set(struct device *dev, bool enable)
 	flexspi_transfer_t flashXfer;
 	status_t status;
 
-	flashXfer.deviceAddress = 0; // TODO Figure out if this can be left to unknown
+	flashXfer.deviceAddress = dev_cfg->mem_offset;
 	flashXfer.port          = dev_cfg->port;
 	flashXfer.cmdType       = kFLEXSPI_Command;
 	flashXfer.SeqNumber     = 1;
