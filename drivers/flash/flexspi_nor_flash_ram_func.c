@@ -186,6 +186,8 @@ int flexspi_nor_flash_erase(struct device *dev, off_t offset, size_t len)
 		return -EINVAL;
 	}
 
+	offset += dev_cfg->mem_offset;
+
 	/* TODO: Improve performance by using block erase 32 kiB ot 64 kiB
 	         when len is big enough. */
 
@@ -267,6 +269,8 @@ int flexspi_nor_flash_write(struct device *dev, off_t offset,
 	if ((offset < 0) || ((offset + len) > dev_cfg->size)) {
 		return -ENODEV;
 	}
+
+	offset += dev_cfg->mem_offset;
 
 	/* Cast data  to prevent  void * arithmetic */
 	const u8_t *data_ptr = data;

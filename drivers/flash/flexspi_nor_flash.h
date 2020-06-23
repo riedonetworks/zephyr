@@ -44,6 +44,7 @@ struct flexspi_nor_flash_dev_config {
 	flexspi_port_t port;	/* Port on which the device is connected. */
 	size_t size;		/* Size of the flash device in bytes. */
 	size_t page_size;	/* Max data size in bytes for "page program" command. */
+	off_t  mem_offset;	/* Offset in the FlexSPI memory map. */
 	const u32_t *lut;	/* FlexSPI LUT. */
 	size_t lut_length;	/* Number of element in LUT. */
 #if defined(CONFIG_FLASH_PAGE_LAYOUT)

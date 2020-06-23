@@ -97,6 +97,7 @@ static const struct flexspi_nor_flash_dev_config w25q128_0_config = {
 	.port       = DT_INST_0_FLEXSPI_WINBOND_W25Q128_BASE_ADDRESS,
 	.size       = NB_SECTOR * SECTOR_SIZE,
 	.page_size  = DT_INST_0_FLEXSPI_WINBOND_W25Q128_PAGE_SIZE,
+	.mem_offset = 0, /* FIXME Use devicetree values*/
 	.lut        = w25q128LUT,
 	.lut_length = W25Q128_LUT_LENGTH,
 #if defined(CONFIG_FLASH_PAGE_LAYOUT)
@@ -138,6 +139,7 @@ static const struct flexspi_nor_flash_dev_config w25q128_1_config = {
 	.port       = DT_INST_1_FLEXSPI_WINBOND_W25Q128_BASE_ADDRESS,
 	.size       = NB_SECTOR * SECTOR_SIZE,
 	.page_size  = DT_INST_1_FLEXSPI_WINBOND_W25Q128_PAGE_SIZE,
+	.mem_offset = 0x1000000, /* FIXME Use devicetree values*/
 	.lut        = w25q128LUT,
 	.lut_length = W25Q128_LUT_LENGTH,
 #if defined(CONFIG_FLASH_PAGE_LAYOUT)

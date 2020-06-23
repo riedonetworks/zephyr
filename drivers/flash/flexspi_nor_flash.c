@@ -31,6 +31,8 @@ int flexspi_nor_flash_read(struct device *dev, off_t offset,
 		return -ENODEV;
 	}
 
+	offset += dev_cfg->mem_offset;
+
 	flexspi_mem_read(dev_data->flexspi, offset, data, len);
 
 	return 0;
