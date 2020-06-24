@@ -12,7 +12,7 @@
 #include <logging/log.h>
 LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
-struct flexspi_imx_data {
+struct flexspi_imx_config {
 	/** Base address of the FlexSPI controller. */
 	FLEXSPI_Type * const base;
 	/** Base address in the CPU memory map. */
@@ -36,18 +36,18 @@ struct flexspi_imx_data {
  */
 off_t flexspi_imx_get_mem_offset(struct device *dev, flexspi_port_t port)
 {
-	const struct flexspi_imx_data *dev_data = dev->driver_data;
+	const struct flexspi_imx_config *dev_cfg = dev->config->config_info;
 
-	if (port < 0 || port >= ARRAY_SIZE(dev_data->base_address)) {
+	if (port < 0 || port >= ARRAY_SIZE(dev_cfg->base_address)) {
 		return -1;
 	}
 
-	u32_t base_addr = dev_data->base_address[port];
+	u32_t base_addr = dev_cfg->base_address[port];
 	if (base_addr == 0xffffffff) {
 		return -1;
 	}
 
-	return base_addr - dev_data->base_address[0];
+	return base_addr - dev_cfg->base_address[0];
 }
 
 /**
@@ -56,12 +56,12 @@ off_t flexspi_imx_get_mem_offset(struct device *dev, flexspi_port_t port)
 void flexspi_imx_update_lut(struct device *dev, unsigned int index,
 			    const u32_t *cmd, unsigned int count)
 {
-	const struct flexspi_imx_data *dev_data = dev->driver_data;
+	const struct flexspi_imx_config *dev_cfg = dev->config->config_info;
 
-	FLEXSPI_UpdateLUT(dev_data->base, index, cmd, count);
+	FLEXSPI_UpdateLUT(dev_cfg->base, index, cmd, count);
 
 #if CONFIG_FLASH_LOG_LEVEL >= 4
-	volatile u32_t *lut = dev_data->base->LUT;
+	volatile u32_t *lut = dev_cfg->base->LUT;
 
 	for (size_t i = 0; i < 16; i++) {
 		LOG_DBG("%s LUT %02d: 0x%08x 0x%08x 0x%08x 0x%08x",
@@ -76,9 +76,9 @@ void flexspi_imx_update_lut(struct device *dev, unsigned int index,
  */
 void flexspi_imx_sw_reset(struct device *dev)
 {
-	const struct flexspi_imx_data *dev_data = dev->driver_data;
+	const struct flexspi_imx_config *dev_cfg = dev->config->config_info;
 
-	FLEXSPI_SoftwareReset(dev_data->base);
+	FLEXSPI_SoftwareReset(dev_cfg->base);
 }
 
 /**
@@ -87,9 +87,9 @@ void flexspi_imx_sw_reset(struct device *dev)
 status_t flexspi_imx_xfer_blocking(struct device *dev,
 				   flexspi_transfer_t *xfer)
 {
-	const struct flexspi_imx_data *dev_data = dev->driver_data;
+	const struct flexspi_imx_config *dev_cfg = dev->config->config_info;
 
-	return FLEXSPI_TransferBlocking(dev_data->base, xfer);
+	return FLEXSPI_TransferBlocking(dev_cfg->base, xfer);
 }
 
 /**
@@ -97,12 +97,12 @@ status_t flexspi_imx_xfer_blocking(struct device *dev,
  */
 void flexspi_imx_ahb_prefetch(struct device *dev, bool enable)
 {
-	const struct flexspi_imx_data *dev_data = dev->driver_data;
+	const struct flexspi_imx_config *dev_cfg = dev->config->config_info;
 
 	if (enable) {
-		dev_data->base->AHBCR |= FLEXSPI_AHBCR_PREFETCHEN_MASK;
+		dev_cfg->base->AHBCR |= FLEXSPI_AHBCR_PREFETCHEN_MASK;
 	} else {
-		dev_data->base->AHBCR &= ~FLEXSPI_AHBCR_PREFETCHEN_MASK;
+		dev_cfg->base->AHBCR &= ~FLEXSPI_AHBCR_PREFETCHEN_MASK;
 	}
 }
 
@@ -113,11 +113,11 @@ void flexspi_imx_invalidate_dcache(struct device *dev,
 				   off_t offset,
 				   size_t size)
 {
-	const struct flexspi_imx_data *dev_data = dev->driver_data;
+	const struct flexspi_imx_config *dev_cfg = dev->config->config_info;
 
 	/* Using ARM specific function since Zephyr doesn't have
 	   a generic cache management API. */
-	SCB_InvalidateDCache_by_Addr((void *)(dev_data->mem_addr + offset),
+	SCB_InvalidateDCache_by_Addr((void *)(dev_cfg->mem_addr + offset),
 				     size);
 }
 
@@ -129,9 +129,9 @@ void flexspi_imx_mem_read(struct device *dev,
 			  void *dest,
 			  size_t size)
 {
-	const struct flexspi_imx_data *dev_data = dev->driver_data;
+	const struct flexspi_imx_config *dev_cfg = dev->config->config_info;
 
-	(void)memcpy(dest, (void *)(dev_data->mem_addr + offset), size);
+	(void)memcpy(dest, (void *)(dev_cfg->mem_addr + offset), size);
 }
 
 /*******************************************************************************
@@ -167,8 +167,7 @@ static const struct flexspi_driver_api flexspi_imx_api = {
 #error FlexSPI controller base address not defined
 #endif
 
-/* FIXME Convert to config (read-only) */
-static struct flexspi_imx_data flexspi0_data = {
+static struct flexspi_imx_config flexspi0_config = {
 	.base = (FLEXSPI_Type *)FLEXSPI_BASE_ADDRESS,
 	.mem_addr = FlexSPI_AMBA_BASE,
 	.base_address = {
@@ -198,8 +197,8 @@ static struct flexspi_imx_data flexspi0_data = {
 DEVICE_AND_API_INIT(flexspi0_controller,
 		    DT_INST_0_NXP_IMX_FLEXSPI_LABEL,
 		    &flexspi_imx_init,
-		    &flexspi0_data,
 		    NULL,
+		    &flexspi0_config,
 		    POST_KERNEL,
 		    CONFIG_FLEXSPI_INIT_PRIORITY,
 		    &flexspi_imx_api);
@@ -220,8 +219,7 @@ DEVICE_AND_API_INIT(flexspi0_controller,
 #error FlexSPI2 controller base address not defined
 #endif
 
-/* FIXME Convert to config (read-only) */
-static struct flexspi_imx_data flexspi1_data = {
+static struct flexspi_imx_config flexspi1_config = {
 	.base = (FLEXSPI_Type *)FLEXSPI2_BASE_ADDRESS,
 	.mem_addr = FlexSPI2_AMBA_BASE,
 	.base_address = {
@@ -251,8 +249,8 @@ static struct flexspi_imx_data flexspi1_data = {
 DEVICE_AND_API_INIT(flexspi1_controller,
 		    DT_INST_1_NXP_IMX_FLEXSPI_LABEL,
 		    &flexspi_imx_init,
-		    &flexspi1_data,
 		    NULL,
+		    &flexspi1_config,
 		    POST_KERNEL,
 		    CONFIG_FLEXSPI_INIT_PRIORITY,
 		    &flexspi_imx_api);
