@@ -433,11 +433,10 @@ int flexspi_nor_flash_write(struct device *dev, off_t offset,
 
 int flexspi_nor_flash_init(struct device *dev)
 {
-	static bool lut_configured = false;
-
 	const struct flexspi_nor_flash_dev_config *dev_cfg =
 		dev->config->config_info;
 	struct flexspi_nor_flash_dev_data *dev_data = dev->driver_data;
+	int err;
 
 	/*
 	 * FlexSPI controller binding
@@ -464,19 +463,16 @@ int flexspi_nor_flash_init(struct device *dev)
 	/*
 	 * Configure LUT
 	 */
-	if (lut_configured) {
-		LOG_ERR("FlexSPI LUT cannot be reconfigured");
-		return -EPERM;
-	}
-
 	unsigned int key = critical_section_enter(dev_data->flexspi);
 
-	/* TODO: Allow configuring the LUT for more than one device. */
-	flexspi_update_lut(dev_data->flexspi,
-			   0,
-			   dev_cfg->lut,
-			   dev_cfg->lut_length);
-	lut_configured = true;
+	err = flexspi_update_lut(dev_data->flexspi,
+				 0,
+				 dev_cfg->lut,
+				 dev_cfg->lut_length);
+	if (err) {
+		LOG_ERR("Failed to configure LUT for %s", dev->config->name);
+		return err;
+	}
 
 	/* TODO Check why software reset is after FLEXSPI_UpdateLUT in SDK
 	        while in AN12564 examples it is before. */
@@ -487,7 +483,7 @@ int flexspi_nor_flash_init(struct device *dev)
 	/*
 	 * Other config
 	 */
-	int err = flexspi_nor_flash_set_quad_enable(dev);
+	err = flexspi_nor_flash_set_quad_enable(dev);
 	if (err) {
 		LOG_ERR("Failed to enable quad IO for %s", dev->config->name);
 		return err;

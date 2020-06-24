@@ -29,10 +29,10 @@
 typedef off_t (*flexspi_api_get_mem_offset)(struct device *dev,
 					    flexspi_port_t port);
 
-typedef void (*flexspi_api_update_lut)(struct device *dev,
-				       unsigned int index,
-				       const u32_t *cmd,
-				       unsigned int count);
+typedef int (*flexspi_api_update_lut)(struct device *dev,
+				      unsigned int index,
+				      const u32_t *cmd,
+				      unsigned int count);
 
 typedef void (*flexspi_api_sw_reset)(struct device *dev);
 
@@ -94,14 +94,14 @@ static inline off_t flexspi_get_mem_offset(struct device *dev, flexspi_port_t po
  * @param cmd Command sequence array.
  * @param count Number of sequences.
  */
-static inline void flexspi_update_lut(struct device *dev,
-				      unsigned int index,
-				      const u32_t *cmd,
-				      unsigned int count)
+static inline int flexspi_update_lut(struct device *dev,
+				     unsigned int index,
+				     const u32_t *cmd,
+				     unsigned int count)
 {
 	const struct flexspi_driver_api *api = dev->driver_api;
 
-	api->update_lut(dev, index, cmd, count);
+	return api->update_lut(dev, index, cmd, count);
 }
 
 /**

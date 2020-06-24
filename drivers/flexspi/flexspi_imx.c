@@ -23,12 +23,19 @@ struct flexspi_imx_config {
 	u32_t const base_address[4];
 };
 
+struct flexspi_imx_data {
+	/** NULL when the LUT was not updated, otherwise address of the LUT
+	    used for updating. FIXME This is a temporary solution
+	    which only works if all devices use the same commands. */
+	const u32_t *lut_key;
+};
+
 /*******************************************************************************
  *  A P I
  ******************************************************************************/
 
 /**
- * Get the offset of a device in the FlexSIP memory map.
+ * Get the offset of a device in the FlexSPI memory map.
  *
  * @param dev FlexSPI device structure.
  * @param port Chip select of the device attached to the FlexSPI controller.
@@ -53,22 +60,36 @@ off_t flexspi_imx_get_mem_offset(struct device *dev, flexspi_port_t port)
 /**
  * Wrapper for FLEXSPI_UpdateLUT.
  */
-void flexspi_imx_update_lut(struct device *dev, unsigned int index,
-			    const u32_t *cmd, unsigned int count)
+int flexspi_imx_update_lut(struct device *dev, unsigned int index,
+			   const u32_t *cmd, unsigned int count)
 {
 	const struct flexspi_imx_config *dev_cfg = dev->config->config_info;
+	struct flexspi_imx_data *dev_data = dev->driver_data;
 
-	FLEXSPI_UpdateLUT(dev_cfg->base, index, cmd, count);
+	if (dev_data->lut_key == NULL) {
+		/* First update */
+		FLEXSPI_UpdateLUT(dev_cfg->base, index, cmd, count);
+		dev_data->lut_key = cmd;
 
 #if CONFIG_FLASH_LOG_LEVEL >= 4
-	volatile u32_t *lut = dev_cfg->base->LUT;
+		volatile u32_t *lut = dev_cfg->base->LUT;
 
-	for (size_t i = 0; i < 16; i++) {
-		LOG_DBG("%s LUT %02d: 0x%08x 0x%08x 0x%08x 0x%08x",
-			dev->config->name, i, lut[0], lut[1], lut[2], lut[3]);
-		lut += 4;
-	}
+		for (size_t i = 0; i < 16; i++) {
+			LOG_DBG("%s LUT %02d: 0x%08x 0x%08x 0x%08x 0x%08x",
+				dev->config->name, i, lut[0], lut[1], lut[2], lut[3]);
+			lut += 4;
+		}
 #endif
+	} else if(cmd != dev_data->lut_key) {
+		/* Request to update the LUT which was already updated but with
+		   different commands: this is not yet possible.
+		   TODO: Allow configuring the LUT for more than one device. */
+		LOG_ERR("FlexSPI LUT cannot be reconfigured");
+		return -ENOTSUP;
+	}
+	/* else: Update requested with the same commands, nothing to do */
+
+	return 0;
 }
 
 /**
@@ -167,7 +188,11 @@ static const struct flexspi_driver_api flexspi_imx_api = {
 #error FlexSPI controller base address not defined
 #endif
 
-static struct flexspi_imx_config flexspi0_config = {
+static struct flexspi_imx_data flexspi0_data = {
+	.lut_key = NULL,
+};
+
+static const struct flexspi_imx_config flexspi0_config = {
 	.base = (FLEXSPI_Type *)FLEXSPI_BASE_ADDRESS,
 	.mem_addr = FlexSPI_AMBA_BASE,
 	.base_address = {
@@ -197,7 +222,7 @@ static struct flexspi_imx_config flexspi0_config = {
 DEVICE_AND_API_INIT(flexspi0_controller,
 		    DT_INST_0_NXP_IMX_FLEXSPI_LABEL,
 		    &flexspi_imx_init,
-		    NULL,
+		    &flexspi0_data,
 		    &flexspi0_config,
 		    POST_KERNEL,
 		    CONFIG_FLEXSPI_INIT_PRIORITY,
@@ -219,7 +244,10 @@ DEVICE_AND_API_INIT(flexspi0_controller,
 #error FlexSPI2 controller base address not defined
 #endif
 
-static struct flexspi_imx_config flexspi1_config = {
+static struct flexspi_imx_data flexspi1_data = {
+	.lut_key = NULL,
+};
+static const struct flexspi_imx_config flexspi1_config = {
 	.base = (FLEXSPI_Type *)FLEXSPI2_BASE_ADDRESS,
 	.mem_addr = FlexSPI2_AMBA_BASE,
 	.base_address = {
@@ -249,7 +277,7 @@ static struct flexspi_imx_config flexspi1_config = {
 DEVICE_AND_API_INIT(flexspi1_controller,
 		    DT_INST_1_NXP_IMX_FLEXSPI_LABEL,
 		    &flexspi_imx_init,
-		    NULL,
+		    &flexspi1_data,
 		    &flexspi1_config,
 		    POST_KERNEL,
 		    CONFIG_FLEXSPI_INIT_PRIORITY,
