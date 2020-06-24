@@ -452,10 +452,13 @@ int flexspi_nor_flash_init(struct device *dev)
 	        while in AN12564 examples it is before. */
 	flexspi_sw_reset(dev_data->flexspi);
 
-	flexspi_nor_flash_set_quad_enable(dev);
-	/* TODO If fails return error */
-
 	critical_section_leave(dev_data->flexspi, key);
+
+	int err = flexspi_nor_flash_set_quad_enable(dev);
+	if (err) {
+		LOG_ERR("Failed to enable quad IO for %s", dev->config->name);
+		return err;
+	}
 
 	/* TODO: Return -ENODEV if JEDEC ID is not the same as in DTS. */
 
