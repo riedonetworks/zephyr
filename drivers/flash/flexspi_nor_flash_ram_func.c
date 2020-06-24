@@ -64,7 +64,7 @@ static ALWAYS_INLINE void critical_section_leave(struct device *flexspi,
 	irq_unlock(key);
 }
 
-#define REG_STATUS_BIT_BUSY 1U
+#define REG_STATUS_BIT_BUSY 0x01U
 
 status_t flexspi_nor_flash_wait_bus_busy(struct device *flexspi,
 					 off_t dev_addr,
@@ -100,7 +100,6 @@ status_t flexspi_nor_flash_wait_bus_busy(struct device *flexspi,
 	return status;
 }
 
-#if CONFIG_FLASH_LOG_LEVEL >= 4
 static status_t flexspi_nor_flash_get_reg(struct device *flexspi,
 					  off_t dev_addr,
 					  flexspi_port_t port,
@@ -123,7 +122,92 @@ static status_t flexspi_nor_flash_get_reg(struct device *flexspi,
 
 	return status;
 }
-#endif
+
+static status_t flexspi_nor_flash_set_reg(struct device *flexspi,
+					  off_t dev_addr,
+					  flexspi_port_t port,
+					  u8_t cmd_idx,
+					  void *reg,
+					  size_t len)
+{
+	flexspi_transfer_t flashXfer;
+	status_t status;
+
+	flashXfer.deviceAddress = dev_addr;
+	flashXfer.port          = port;
+	flashXfer.cmdType       = kFLEXSPI_Write;
+	flashXfer.SeqNumber     = 1;
+	flashXfer.seqIndex      = cmd_idx;
+	flashXfer.data          = reg;
+	flashXfer.dataSize      = len;
+
+	status = flexspi_xfer_blocking(flexspi, &flashXfer);
+
+	return status;
+}
+
+#define REG_STATUS2_BIT_QE 0x02U
+
+/**
+ * Set quad enable if not yet set
+ *
+ * @todo:
+ * - Only set QE bit if spi-access-mode = "quad" or "qpi" in devicetree
+ * - Use a config function which is specific to the flash model
+ *
+ * @return 0 on success or a negative error code on failure.
+ */
+static int flexspi_nor_flash_set_quad_enable(struct device *dev)
+{
+	const struct flexspi_nor_flash_dev_config *dev_cfg =
+		dev->config->config_info;
+	struct flexspi_nor_flash_dev_data *dev_data = dev->driver_data;
+	status_t status;
+	u8_t stat_reg_2;
+
+	status = flexspi_nor_flash_get_reg(
+		dev_data->flexspi, dev_cfg->mem_offset, dev_cfg->port,
+		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG2, &stat_reg_2, 1
+	);
+	if (status != kStatus_Success) {
+		LOG_ERR("Reading status register 2 failed (0x%x)", status);
+		return -EIO;
+	}
+
+	LOG_DBG("%s: status register 2 0x%02x\n",
+		dev->config->name, stat_reg_2);
+
+	if ((stat_reg_2 & REG_STATUS2_BIT_QE) == 0) {
+		if (flexspi_nor_flash_write_protection_set(dev, false)) {
+			return -EIO;
+		}
+
+		LOG_INF("%s: setting QE bit in status register 2\n",
+			dev->config->name);
+
+		stat_reg_2 |= REG_STATUS2_BIT_QE;
+		status = flexspi_nor_flash_set_reg(
+			dev_data->flexspi, dev_cfg->mem_offset, dev_cfg->port,
+			NOR_CMD_LUT_SEQ_IDX_WRITESTATUSREG2, &stat_reg_2, 1
+		);
+		if (status != kStatus_Success) {
+			LOG_ERR("Writing status register 2 failed (0x%x)",
+				status);
+			return -EIO;
+		}
+
+		status = flexspi_nor_flash_wait_bus_busy(dev_data->flexspi,
+							 dev_cfg->mem_offset,
+							 dev_cfg->port);
+		if (status != kStatus_Success) {
+			LOG_ERR("Waiting while bus is busy failed (0x%x)",
+				status);
+			return -EIO;
+		}
+	}
+
+	return 0;
+}
 
 /*******************************************************************************
  *  F L A S H   A P I
@@ -355,6 +439,9 @@ int flexspi_nor_flash_init(struct device *dev)
 	/* TODO Check why software reset is after FLEXSPI_UpdateLUT in SDK
 	        while in AN12564 examples it is before. */
 	flexspi_sw_reset(dev_data->flexspi);
+
+	flexspi_nor_flash_set_quad_enable(dev);
+	/* TODO If fails return error */
 
 	critical_section_leave(dev_data->flexspi, key);
 
