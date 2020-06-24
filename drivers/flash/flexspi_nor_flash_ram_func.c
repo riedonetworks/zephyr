@@ -209,6 +209,36 @@ static int flexspi_nor_flash_set_quad_enable(struct device *dev)
 	return 0;
 }
 
+static int flexspi_nor_flash_check_jedec_id(struct device *dev)
+{
+	const struct flexspi_nor_flash_dev_config *dev_cfg =
+		dev->config->config_info;
+	struct flexspi_nor_flash_dev_data *dev_data = dev->driver_data;
+	status_t status;
+	u8_t id[JEDEC_ID_LEN];
+
+	status = flexspi_nor_flash_get_reg(
+		dev_data->flexspi, dev_data->mem_offset, dev_cfg->port,
+		NOR_CMD_LUT_SEQ_IDX_READJEDECID, id, JEDEC_ID_LEN
+	);
+	if (status != kStatus_Success) {
+		LOG_ERR("Reading JEDEC ID failed (0x%x)", status);
+		return -EIO;
+	}
+
+	if (memcmp(id, dev_cfg->jedec_id, JEDEC_ID_LEN) != 0) {
+		LOG_ERR("Wrong JEDEC ID: expected %02x %02x %02x but got %02x %02x %02x",
+			dev_cfg->jedec_id[0], dev_cfg->jedec_id[1],
+			dev_cfg->jedec_id[2], id[0], id[1], id[2]);
+		return -ENODEV;
+	}
+
+	LOG_DBG("%s JEDEC ID: %02x %02x %02x",
+		dev->config->name, id[0], id[1], id[2]);
+
+	return 0;
+}
+
 /*******************************************************************************
  *  F L A S H   A P I
  ******************************************************************************/
@@ -454,53 +484,49 @@ int flexspi_nor_flash_init(struct device *dev)
 
 	critical_section_leave(dev_data->flexspi, key);
 
+	/*
+	 * Other config
+	 */
 	int err = flexspi_nor_flash_set_quad_enable(dev);
 	if (err) {
 		LOG_ERR("Failed to enable quad IO for %s", dev->config->name);
 		return err;
 	}
 
-	/* TODO: Return -ENODEV if JEDEC ID is not the same as in DTS. */
+	err = flexspi_nor_flash_check_jedec_id(dev);
+	if (err) {
+		return err;
+	}
 
 #if CONFIG_FLASH_LOG_LEVEL >= 4
-	u8_t reg[3];
+	u8_t reg;
 	status_t status;
 
 	status = flexspi_nor_flash_get_reg(dev_data->flexspi,
 		dev_data->mem_offset, dev_cfg->port,
-		NOR_CMD_LUT_SEQ_IDX_READJEDECID, reg, 3);
-	if (status != kStatus_Success) {
-		LOG_WRN("Reading JEDEC ID failed (0x%x)", status);
-	} else {
-		LOG_DBG("JEDEC ID %02x %02x %02x",
-			reg[0], reg[1], reg[2]);
-	}
-
-	status = flexspi_nor_flash_get_reg(dev_data->flexspi,
-		dev_data->mem_offset, dev_cfg->port,
-		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG, reg, 1);
+		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG, &reg, 1);
 	if (status != kStatus_Success) {
 		LOG_WRN("Reading status register 1 failed (0x%x)", status);
 	} else {
-		LOG_DBG("Status register 1 0x%02x", reg[0]);
+		LOG_DBG("Status register 1 0x%02x", reg);
 	}
 
 	status = flexspi_nor_flash_get_reg(dev_data->flexspi,
 		dev_data->mem_offset, dev_cfg->port,
-		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG2, reg, 1);
+		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG2, &reg, 1);
 	if (status != kStatus_Success) {
 		LOG_WRN("Reading status register 2 failed (0x%x)", status);
 	} else {
-		LOG_DBG("Status register 2 0x%02x", reg[0]);
+		LOG_DBG("Status register 2 0x%02x", reg);
 	}
 
 	status = flexspi_nor_flash_get_reg(dev_data->flexspi,
 		dev_data->mem_offset, dev_cfg->port,
-		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG3, reg, 1);
+		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG3, &reg, 1);
 	if (status != kStatus_Success) {
 		LOG_WRN("Reading status register 3 failed (0x%x)", status);
 	} else {
-		LOG_DBG("Status register 3 0x%02x", reg[0]);
+		LOG_DBG("Status register 3 0x%02x", reg);
 	}
 #endif
 

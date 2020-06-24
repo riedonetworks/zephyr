@@ -100,6 +100,7 @@ static const struct flash_driver_api w25q128_flash_api = {
 
 static const struct flexspi_nor_flash_dev_config w25q128_0_config = {
 	.bus_name   = DT_INST_0_FLEXSPI_WINBOND_W25Q128_BUS_NAME,
+	.jedec_id   = DT_INST_0_FLEXSPI_WINBOND_W25Q128_JEDEC_ID,
 	.port       = DT_INST_0_FLEXSPI_WINBOND_W25Q128_BASE_ADDRESS,
 	.size       = NB_SECTOR * SECTOR_SIZE,
 	.page_size  = DT_INST_0_FLEXSPI_WINBOND_W25Q128_PAGE_SIZE,
@@ -142,6 +143,7 @@ DEVICE_AND_API_INIT(flexspi_nor_flash_0_w25q128,
 
 static const struct flexspi_nor_flash_dev_config w25q128_1_config = {
 	.bus_name   = DT_INST_1_FLEXSPI_WINBOND_W25Q128_BUS_NAME,
+	.jedec_id   = DT_INST_1_FLEXSPI_WINBOND_W25Q128_JEDEC_ID,
 	.port       = DT_INST_1_FLEXSPI_WINBOND_W25Q128_BASE_ADDRESS,
 	.size       = NB_SECTOR * SECTOR_SIZE,
 	.page_size  = DT_INST_1_FLEXSPI_WINBOND_W25Q128_PAGE_SIZE,
