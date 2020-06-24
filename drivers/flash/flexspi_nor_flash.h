@@ -34,6 +34,8 @@ enum {
 struct flexspi_nor_flash_dev_data {
 	/** Handle to the FlexSPI driver to which the flash is attached to. */
 	struct device *flexspi;
+	/** Offset in the FlexSPI memory map. */
+	off_t mem_offset;
 	/** Bounce buffer to avoid accessing data from flash during writes. */
 	u32_t *bounce_buffer;
 	/* TODO If flash is not used for executing code (XIP) do not use
@@ -45,7 +47,6 @@ struct flexspi_nor_flash_dev_config {
 	flexspi_port_t port;	/* Port on which the device is connected. */
 	size_t size;		/* Size of the flash device in bytes. */
 	size_t page_size;	/* Max data size in bytes for "page program" command. */
-	off_t  mem_offset;	/* Offset in the FlexSPI memory map. */
 	const u32_t *lut;	/* FlexSPI LUT. */
 	size_t lut_length;	/* Number of element in LUT. */
 #if defined(CONFIG_FLASH_PAGE_LAYOUT)

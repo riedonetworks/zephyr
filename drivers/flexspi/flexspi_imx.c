@@ -17,11 +17,38 @@ struct flexspi_imx_data {
 	FLEXSPI_Type * const base;
 	/** Base address in the CPU memory map. */
 	u32_t const mem_addr;
+	/** Base address in the FlexSPI memory map for each device attached
+	    to the controller, indexed by chip select. Unused values
+	    must be set to 0xffffffff. */
+	u32_t const base_address[4];
 };
 
 /*******************************************************************************
  *  A P I
  ******************************************************************************/
+
+/**
+ * Get the offset of a device in the FlexSIP memory map.
+ *
+ * @param dev FlexSPI device structure.
+ * @param port Chip select of the device attached to the FlexSPI controller.
+ * @return The offset or -1 if port is out of range.
+ */
+off_t flexspi_imx_get_mem_offset(struct device *dev, flexspi_port_t port)
+{
+	const struct flexspi_imx_data *dev_data = dev->driver_data;
+
+	if (port < 0 || port >= ARRAY_SIZE(dev_data->base_address)) {
+		return -1;
+	}
+
+	u32_t base_addr = dev_data->base_address[port];
+	if (base_addr == 0xffffffff) {
+		return -1;
+	}
+
+	return base_addr - dev_data->base_address[0];
+}
 
 /**
  * Wrapper for FLEXSPI_UpdateLUT.
@@ -117,6 +144,7 @@ int flexspi_imx_init(struct device *dev)
 }
 
 static const struct flexspi_driver_api flexspi_imx_api = {
+	.get_mem_offset = flexspi_imx_get_mem_offset,
 	.update_lut = flexspi_imx_update_lut,
 	.sw_reset = flexspi_imx_sw_reset,
 	.xfer_blocking = flexspi_imx_xfer_blocking,
@@ -139,9 +167,32 @@ static const struct flexspi_driver_api flexspi_imx_api = {
 #error FlexSPI controller base address not defined
 #endif
 
+/* FIXME Convert to config (read-only) */
 static struct flexspi_imx_data flexspi0_data = {
 	.base = (FLEXSPI_Type *)FLEXSPI_BASE_ADDRESS,
 	.mem_addr = FlexSPI_AMBA_BASE,
+	.base_address = {
+#if defined(DT_INST_0_NXP_IMX_FLEXSPI_BASE_ADDRESS_1)
+		DT_INST_0_NXP_IMX_FLEXSPI_BASE_ADDRESS_1,
+#else
+		0xffffffff,
+#endif
+#if defined(DT_INST_0_NXP_IMX_FLEXSPI_BASE_ADDRESS_2)
+		DT_INST_0_NXP_IMX_FLEXSPI_BASE_ADDRESS_2,
+#else
+		0xffffffff,
+#endif
+#if defined(DT_INST_0_NXP_IMX_FLEXSPI_BASE_ADDRESS_3)
+		DT_INST_0_NXP_IMX_FLEXSPI_BASE_ADDRESS_3,
+#else
+		0xffffffff,
+#endif
+#if defined(DT_INST_0_NXP_IMX_FLEXSPI_BASE_ADDRESS_4)
+		DT_INST_0_NXP_IMX_FLEXSPI_BASE_ADDRESS_4,
+#else
+		0xffffffff,
+#endif
+	},
 };
 
 DEVICE_AND_API_INIT(flexspi0_controller,
@@ -169,9 +220,32 @@ DEVICE_AND_API_INIT(flexspi0_controller,
 #error FlexSPI2 controller base address not defined
 #endif
 
+/* FIXME Convert to config (read-only) */
 static struct flexspi_imx_data flexspi1_data = {
 	.base = (FLEXSPI_Type *)FLEXSPI2_BASE_ADDRESS,
 	.mem_addr = FlexSPI2_AMBA_BASE,
+	.base_address = {
+#if defined(DT_INST_1_NXP_IMX_FLEXSPI_BASE_ADDRESS_1)
+		DT_INST_1_NXP_IMX_FLEXSPI_BASE_ADDRESS_1,
+#else
+		0xffffffff,
+#endif
+#if defined(DT_INST_1_NXP_IMX_FLEXSPI_BASE_ADDRESS_2)
+		DT_INST_1_NXP_IMX_FLEXSPI_BASE_ADDRESS_2,
+#else
+		0xffffffff,
+#endif
+#if defined(DT_INST_1_NXP_IMX_FLEXSPI_BASE_ADDRESS_3)
+		DT_INST_1_NXP_IMX_FLEXSPI_BASE_ADDRESS_3,
+#else
+		0xffffffff,
+#endif
+#if defined(DT_INST_1_NXP_IMX_FLEXSPI_BASE_ADDRESS_4)
+		DT_INST_1_NXP_IMX_FLEXSPI_BASE_ADDRESS_4,
+#else
+		0xffffffff,
+#endif
+	},
 };
 
 DEVICE_AND_API_INIT(flexspi1_controller,

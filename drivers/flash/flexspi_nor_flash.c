@@ -31,7 +31,7 @@ int flexspi_nor_flash_read(struct device *dev, off_t offset,
 		return -ENODEV;
 	}
 
-	offset += dev_cfg->mem_offset;
+	offset += dev_data->mem_offset;
 
 	flexspi_mem_read(dev_data->flexspi, offset, data, len);
 
@@ -53,7 +53,7 @@ int flexspi_nor_flash_write_protection_set(struct device *dev, bool enable)
 	flexspi_transfer_t flashXfer;
 	status_t status;
 
-	flashXfer.deviceAddress = dev_cfg->mem_offset;
+	flashXfer.deviceAddress = dev_data->mem_offset;
 	flashXfer.port          = dev_cfg->port;
 	flashXfer.cmdType       = kFLEXSPI_Command;
 	flashXfer.SeqNumber     = 1;

@@ -26,6 +26,9 @@
  *  A P I
  */
 
+typedef off_t (*flexspi_api_get_mem_offset)(struct device *dev,
+					    flexspi_port_t port);
+
 typedef void (*flexspi_api_update_lut)(struct device *dev,
 				       unsigned int index,
 				       const u32_t *cmd,
@@ -53,6 +56,7 @@ typedef void (*flexspi_api_mem_read)(struct device *dev,
  * This is the mandatory API any FlexSPI driver needs to expose.
  */
 struct flexspi_driver_api {
+	flexspi_api_get_mem_offset get_mem_offset;
 	flexspi_api_update_lut update_lut;
 	flexspi_api_sw_reset sw_reset;
 	flexspi_api_xfer_blocking xfer_blocking;
@@ -64,6 +68,20 @@ struct flexspi_driver_api {
 /*
  *  F U N C T I O N S
  */
+
+/**
+ * @brief Get the offset of a device in the FlexSIP memory map.
+ *
+ * @param dev FlexSPI device structure.
+ * @param port Chip select of the device attached to the FlexSPI controller.
+ * @return The offset or -1 if port is out of range.
+ */
+static inline off_t flexspi_get_mem_offset(struct device *dev, flexspi_port_t port)
+{
+	const struct flexspi_driver_api *api = dev->driver_api;
+
+	return api->get_mem_offset(dev, port);
+}
 
 /**
  * @brief Update the controller look-up table.
