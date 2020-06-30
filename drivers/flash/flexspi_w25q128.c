@@ -9,6 +9,7 @@
 #if defined(DT_INST_0_FLEXSPI_WINBOND_W25Q128) || \
     defined(DT_INST_1_FLEXSPI_WINBOND_W25Q128)
 
+/* Number of command * 4 (each command uses 4 words) */
 #define W25Q128_LUT_LENGTH (9U * 4U)
 
 #if DT_INST_0_FLEXSPI_WINBOND_W25Q128_SPI_ACCESS_MODE_ENUM == SPI_ACCESS_MODE_QUAD || \
@@ -118,8 +119,10 @@ static const struct flexspi_nor_flash_dev_config w25q128_0_config = {
 /* Bounce buffer is used for writing at most a full page.
    Round the size up to be sure to have enough space. */
 static u32_t w25q128_0_bounce_buffer[
-	(DT_INST_0_FLEXSPI_WINBOND_W25Q128_PAGE_SIZE / sizeof(u32_t)) +
-	(DT_INST_0_FLEXSPI_WINBOND_W25Q128_PAGE_SIZE % sizeof(u32_t))
+	(DT_INST_0_FLEXSPI_WINBOND_W25Q128_PAGE_SIZE / sizeof(u32_t))
+#if DT_INST_0_FLEXSPI_WINBOND_W25Q128_PAGE_SIZE % 4
+	+ 1
+#endif
 ];
 
 static struct flexspi_nor_flash_dev_data w25q128_0_data = {
@@ -161,8 +164,10 @@ static const struct flexspi_nor_flash_dev_config w25q128_1_config = {
 /* Bounce buffer is used for writing at most a full page.
    Round the size up to be sure to have enough space. */
 static u32_t w25q128_1_bounce_buffer[
-	(DT_INST_1_FLEXSPI_WINBOND_W25Q128_PAGE_SIZE / sizeof(u32_t)) +
-	(DT_INST_1_FLEXSPI_WINBOND_W25Q128_PAGE_SIZE % sizeof(u32_t))
+	(DT_INST_1_FLEXSPI_WINBOND_W25Q128_PAGE_SIZE / sizeof(u32_t))
+#if DT_INST_1_FLEXSPI_WINBOND_W25Q128_PAGE_SIZE % 4
+	+ 1
+#endif
 ];
 
 static struct flexspi_nor_flash_dev_data w25q128_1_data = {
