@@ -174,7 +174,7 @@ static int flexspi_nor_flash_set_quad_enable(struct device *dev)
 		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG2, &stat_reg_2, 1
 	);
 	if (status != kStatus_Success) {
-		LOG_ERR("Reading status register 2 failed (0x%x)", status);
+		LOG_ERR("Reading status register 2 failed (%d)", status);
 		return -EIO;
 	}
 
@@ -195,7 +195,7 @@ static int flexspi_nor_flash_set_quad_enable(struct device *dev)
 			NOR_CMD_LUT_SEQ_IDX_WRITESTATUSREG2, &stat_reg_2, 1
 		);
 		if (status != kStatus_Success) {
-			LOG_ERR("Writing status register 2 failed (0x%x)",
+			LOG_ERR("Writing status register 2 failed (%d)",
 				status);
 			return -EIO;
 		}
@@ -204,7 +204,7 @@ static int flexspi_nor_flash_set_quad_enable(struct device *dev)
 							 dev_data->mem_offset,
 							 dev_cfg->port);
 		if (status != kStatus_Success) {
-			LOG_ERR("Waiting while bus is busy failed (0x%x)",
+			LOG_ERR("Waiting while bus is busy failed (%d)",
 				status);
 			return -EIO;
 		}
@@ -226,7 +226,7 @@ static int flexspi_nor_flash_check_jedec_id(struct device *dev)
 		NOR_CMD_LUT_SEQ_IDX_READJEDECID, id, JEDEC_ID_LEN
 	);
 	if (status != kStatus_Success) {
-		LOG_ERR("Reading JEDEC ID failed (0x%x)", status);
+		LOG_ERR("Reading JEDEC ID failed (%d)", status);
 		return -EIO;
 	}
 
@@ -552,7 +552,7 @@ int flexspi_nor_flash_init(struct device *dev)
 	 */
 	err = flexspi_nor_flash_set_quad_enable(dev);
 	if (err) {
-		LOG_ERR("Failed to enable quad IO for %s", dev->config->name);
+		LOG_ERR("Failed to enable quad I/O for %s", dev->config->name);
 		return err;
 	}
 
@@ -569,7 +569,7 @@ int flexspi_nor_flash_init(struct device *dev)
 		dev_data->mem_offset, dev_cfg->port,
 		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG, &reg, 1);
 	if (status != kStatus_Success) {
-		LOG_WRN("Reading status register 1 failed (0x%x)", status);
+		LOG_WRN("Reading status register 1 failed (%d)", status);
 	} else {
 		LOG_DBG("Status register 1 0x%02x", reg);
 	}
@@ -578,7 +578,7 @@ int flexspi_nor_flash_init(struct device *dev)
 		dev_data->mem_offset, dev_cfg->port,
 		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG2, &reg, 1);
 	if (status != kStatus_Success) {
-		LOG_WRN("Reading status register 2 failed (0x%x)", status);
+		LOG_WRN("Reading status register 2 failed (%d)", status);
 	} else {
 		LOG_DBG("Status register 2 0x%02x", reg);
 	}
@@ -587,7 +587,7 @@ int flexspi_nor_flash_init(struct device *dev)
 		dev_data->mem_offset, dev_cfg->port,
 		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG3, &reg, 1);
 	if (status != kStatus_Success) {
-		LOG_WRN("Reading status register 3 failed (0x%x)", status);
+		LOG_WRN("Reading status register 3 failed (%d)", status);
 	} else {
 		LOG_DBG("Status register 3 0x%02x", reg);
 	}
