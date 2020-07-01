@@ -80,7 +80,7 @@ int flexspi_imx_update_lut(struct device *dev, unsigned int index,
 			lut += 4;
 		}
 #endif
-	} else if(cmd != dev_data->lut_key) {
+	} else if (cmd != dev_data->lut_key) {
 		/* Request to update the LUT which was already updated but with
 		   different commands: this is not yet possible.
 		   TODO: Allow configuring the LUT for more than one device. */
@@ -164,7 +164,7 @@ int flexspi_imx_init(struct device *dev)
 	return 0;
 }
 
-static const struct flexspi_driver_api flexspi_imx_api = {
+__dtcm_data_section static const struct flexspi_driver_api flexspi_imx_api = {
 	.get_mem_offset = flexspi_imx_get_mem_offset,
 	.update_lut = flexspi_imx_update_lut,
 	.sw_reset = flexspi_imx_sw_reset,
@@ -192,7 +192,7 @@ static struct flexspi_imx_data flexspi0_data = {
 	.lut_key = NULL,
 };
 
-static const struct flexspi_imx_config flexspi0_config = {
+__dtcm_data_section static const struct flexspi_imx_config flexspi0_config = {
 	.base = (FLEXSPI_Type *)FLEXSPI_BASE_ADDRESS,
 	.mem_addr = FlexSPI_AMBA_BASE,
 	.base_address = {
@@ -247,7 +247,7 @@ DEVICE_AND_API_INIT(flexspi0_controller,
 static struct flexspi_imx_data flexspi1_data = {
 	.lut_key = NULL,
 };
-static const struct flexspi_imx_config flexspi1_config = {
+__dtcm_data_section static const struct flexspi_imx_config flexspi1_config = {
 	.base = (FLEXSPI_Type *)FLEXSPI2_BASE_ADDRESS,
 	.mem_addr = FlexSPI2_AMBA_BASE,
 	.base_address = {

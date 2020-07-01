@@ -14,7 +14,7 @@
 
 #if DT_INST_0_FLEXSPI_WINBOND_W25Q128_SPI_ACCESS_MODE_ENUM == SPI_ACCESS_MODE_QUAD || \
     DT_INST_1_FLEXSPI_WINBOND_W25Q128_SPI_ACCESS_MODE_ENUM == SPI_ACCESS_MODE_QUAD
-static const u32_t w25q128LUT[W25Q128_LUT_LENGTH] = {
+__dtcm_data_section static const u32_t w25q128LUT[W25Q128_LUT_LENGTH] = {
 	/* Fast read quad mode - SDR */
 	[4 * NOR_CMD_LUT_SEQ_IDX_READ] = FLEXSPI_LUT_SEQ(
 		kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0xEB,
@@ -81,7 +81,7 @@ static const u32_t w25q128LUT[W25Q128_LUT_LENGTH] = {
 #error SPI access mode not supported by FlexSPI winbond W25Q128 driver
 #endif
 
-static const struct flash_driver_api w25q128_flash_api = {
+__dtcm_data_section static const struct flash_driver_api w25q128_flash_api = {
 	.read = flexspi_nor_flash_read,
 	.write = flexspi_nor_flash_write,
 	.erase = flexspi_nor_flash_erase,
@@ -99,7 +99,7 @@ static const struct flash_driver_api w25q128_flash_api = {
 
 #if defined(DT_INST_0_FLEXSPI_WINBOND_W25Q128)
 
-static const struct flexspi_nor_flash_dev_config w25q128_0_config = {
+__dtcm_data_section static const struct flexspi_nor_flash_dev_config w25q128_0_config = {
 	.bus_name   = DT_INST_0_FLEXSPI_WINBOND_W25Q128_BUS_NAME,
 	.jedec_id   = DT_INST_0_FLEXSPI_WINBOND_W25Q128_JEDEC_ID,
 	.port       = DT_INST_0_FLEXSPI_WINBOND_W25Q128_BASE_ADDRESS,
@@ -144,7 +144,7 @@ DEVICE_AND_API_INIT(flexspi_nor_flash_0_w25q128,
 
 #if defined(DT_INST_1_FLEXSPI_WINBOND_W25Q128)
 
-static const struct flexspi_nor_flash_dev_config w25q128_1_config = {
+__dtcm_data_section static const struct flexspi_nor_flash_dev_config w25q128_1_config = {
 	.bus_name   = DT_INST_1_FLEXSPI_WINBOND_W25Q128_BUS_NAME,
 	.jedec_id   = DT_INST_1_FLEXSPI_WINBOND_W25Q128_JEDEC_ID,
 	.port       = DT_INST_1_FLEXSPI_WINBOND_W25Q128_BASE_ADDRESS,
