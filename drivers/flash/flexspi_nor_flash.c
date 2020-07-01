@@ -111,18 +111,25 @@ static status_t flexspi_nor_flash_get_reg(struct device *flexspi,
 					  void *reg,
 					  size_t len)
 {
-	flexspi_transfer_t flashXfer;
-	status_t status;
+	u32_t buffer[(len + (sizeof(u32_t) - 1)) / sizeof(u32_t)];
 
-	flashXfer.deviceAddress = dev_addr;
-	flashXfer.port          = port;
-	flashXfer.cmdType       = kFLEXSPI_Read;
-	flashXfer.SeqNumber     = 1;
-	flashXfer.seqIndex      = cmd_idx;
-	flashXfer.data          = reg;
-	flashXfer.dataSize      = len;
+	flexspi_transfer_t flashXfer = {
+		.deviceAddress = dev_addr,
+		.port          = port,
+		.cmdType       = kFLEXSPI_Read,
+		.SeqNumber     = 1,
+		.seqIndex      = cmd_idx,
+		.data          = buffer,
+		.dataSize      = len,
+	};
 
-	status = flexspi_xfer_blocking(flexspi, &flashXfer);
+	status_t status = flexspi_xfer_blocking(flexspi, &flashXfer);
+
+	u8_t *dst = reg;
+	u8_t *src = (u8_t *)buffer;
+	for (int i = 0; i < len; ++i) {
+		*dst++ = *src++;
+	}
 
 	return status;
 }
@@ -134,20 +141,25 @@ static status_t flexspi_nor_flash_set_reg(struct device *flexspi,
 					  void *reg,
 					  size_t len)
 {
-	flexspi_transfer_t flashXfer;
-	status_t status;
+	u32_t buffer[(len + (sizeof(u32_t) - 1)) / sizeof(u32_t)];
 
-	flashXfer.deviceAddress = dev_addr;
-	flashXfer.port          = port;
-	flashXfer.cmdType       = kFLEXSPI_Write;
-	flashXfer.SeqNumber     = 1;
-	flashXfer.seqIndex      = cmd_idx;
-	flashXfer.data          = reg;
-	flashXfer.dataSize      = len;
+	u8_t *dst = (u8_t *)buffer;
+	u8_t *src = reg;
+	for (int i = 0; i < len; ++i) {
+		*dst++ = *src++;
+	}
 
-	status = flexspi_xfer_blocking(flexspi, &flashXfer);
+	flexspi_transfer_t flashXfer = {
+		.deviceAddress = dev_addr,
+		.port          = port,
+		.cmdType       = kFLEXSPI_Write,
+		.SeqNumber     = 1,
+		.seqIndex      = cmd_idx,
+		.data          = buffer,
+		.dataSize      = len,
+	};
 
-	return status;
+	return flexspi_xfer_blocking(flexspi, &flashXfer);
 }
 
 #define REG_STATUS2_BIT_QE 0x02U
@@ -171,7 +183,8 @@ static int flexspi_nor_flash_set_quad_enable(struct device *dev)
 
 	status = flexspi_nor_flash_get_reg(
 		dev_data->flexspi, dev_data->mem_offset, dev_cfg->port,
-		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG2, &stat_reg_2, 1
+		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG2,
+		&stat_reg_2, sizeof(stat_reg_2)
 	);
 	if (status != kStatus_Success) {
 		LOG_ERR("Reading status register 2 failed (%d)", status);
@@ -192,7 +205,8 @@ static int flexspi_nor_flash_set_quad_enable(struct device *dev)
 		stat_reg_2 |= REG_STATUS2_BIT_QE;
 		status = flexspi_nor_flash_set_reg(
 			dev_data->flexspi, dev_data->mem_offset, dev_cfg->port,
-			NOR_CMD_LUT_SEQ_IDX_WRITESTATUSREG2, &stat_reg_2, 1
+			NOR_CMD_LUT_SEQ_IDX_WRITESTATUSREG2,
+			&stat_reg_2, sizeof(stat_reg_2)
 		);
 		if (status != kStatus_Success) {
 			LOG_ERR("Writing status register 2 failed (%d)",
@@ -223,7 +237,7 @@ static int flexspi_nor_flash_check_jedec_id(struct device *dev)
 
 	status = flexspi_nor_flash_get_reg(
 		dev_data->flexspi, dev_data->mem_offset, dev_cfg->port,
-		NOR_CMD_LUT_SEQ_IDX_READJEDECID, id, JEDEC_ID_LEN
+		NOR_CMD_LUT_SEQ_IDX_READJEDECID, id, ARRAY_SIZE(id)
 	);
 	if (status != kStatus_Success) {
 		LOG_ERR("Reading JEDEC ID failed (%d)", status);
@@ -567,7 +581,7 @@ int flexspi_nor_flash_init(struct device *dev)
 
 	status = flexspi_nor_flash_get_reg(dev_data->flexspi,
 		dev_data->mem_offset, dev_cfg->port,
-		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG, &reg, 1);
+		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG, &reg, size(reg));
 	if (status != kStatus_Success) {
 		LOG_WRN("Reading status register 1 failed (%d)", status);
 	} else {
@@ -576,7 +590,7 @@ int flexspi_nor_flash_init(struct device *dev)
 
 	status = flexspi_nor_flash_get_reg(dev_data->flexspi,
 		dev_data->mem_offset, dev_cfg->port,
-		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG2, &reg, 1);
+		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG2, &reg, size(reg));
 	if (status != kStatus_Success) {
 		LOG_WRN("Reading status register 2 failed (%d)", status);
 	} else {
@@ -585,7 +599,7 @@ int flexspi_nor_flash_init(struct device *dev)
 
 	status = flexspi_nor_flash_get_reg(dev_data->flexspi,
 		dev_data->mem_offset, dev_cfg->port,
-		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG3, &reg, 1);
+		NOR_CMD_LUT_SEQ_IDX_READSTATUSREG3, &reg, size(reg));
 	if (status != kStatus_Success) {
 		LOG_WRN("Reading status register 3 failed (%d)", status);
 	} else {
