@@ -17,13 +17,12 @@ zephyr_library_sources_ifdef(CONFIG_SOC_FLASH_GECKO flash_gecko.c)
 zephyr_library_sources_ifdef(CONFIG_SOC_FLASH_RV32M1 soc_flash_rv32m1.c)
 zephyr_library_sources_ifdef(CONFIG_FLEXSPI_NOR_FLASH
   flexspi_nor_flash.c
-  flexspi_nor_flash_ram_func.c
   flexspi_w25q128.c
   flexspi_w25q256.c
 )
 
 if(CONFIG_FLEXSPI_NOR_FLASH)
-  zephyr_code_relocate(flexspi_nor_flash_ram_func.c ITCM_TEXT DTCM_DATA DTCM_BSS)
+  zephyr_code_relocate(flexspi_nor_flash.c ITCM_TEXT DTCM_DATA DTCM_BSS)
 endif()
 
 if(CONFIG_SOC_FLASH_STM32)

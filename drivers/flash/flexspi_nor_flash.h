@@ -2,7 +2,6 @@
  * Copyright (c) 2020 Riedo Networks Ltd.
  *
  * SPDX-License-Identifier: BSD-3-Clause
- *
  */
 
 #ifndef ZEPHYR_DRIVERS_FLEXSPI_NOR_FLASH_H_
@@ -18,6 +17,8 @@
 #define SPI_ACCESS_MODE_QUAD   2
 #define SPI_ACCESS_MODE_QPI    3
 
+#define JEDEC_ID_LEN 3
+
 /* Index of the commands in the FlexSPI LUT. */
 enum {
 	NOR_CMD_LUT_SEQ_IDX_READ = 0,
@@ -28,12 +29,15 @@ enum {
 	NOR_CMD_LUT_SEQ_IDX_READSTATUSREG,
 	NOR_CMD_LUT_SEQ_IDX_READSTATUSREG2,
 	NOR_CMD_LUT_SEQ_IDX_READSTATUSREG3,
+	NOR_CMD_LUT_SEQ_IDX_WRITESTATUSREG2,
 	NOR_CMD_LUT_COUNT,
 };
 
 struct flexspi_nor_flash_dev_data {
 	/** Handle to the FlexSPI driver to which the flash is attached to. */
 	struct device *flexspi;
+	/** Offset in the FlexSPI memory map. */
+	off_t mem_offset;
 	/** Bounce buffer to avoid accessing data from flash during writes. */
 	u32_t *bounce_buffer;
 	/* TODO If flash is not used for executing code (XIP) do not use
@@ -41,12 +45,20 @@ struct flexspi_nor_flash_dev_data {
 };
 
 struct flexspi_nor_flash_dev_config {
-	const char *bus_name;	/* Name of the parent bus (for device_get_binding). */
-	flexspi_port_t port;	/* Port on which the device is connected. */
-	size_t size;		/* Size of the flash device in bytes. */
-	size_t page_size;	/* Max data size in bytes for "page program" command. */
-	const u32_t *lut;	/* FlexSPI LUT. */
-	size_t lut_length;	/* Number of element in LUT. */
+	/** Name of the parent bus (for device_get_binding). */
+	const char *bus_name;
+	/** JEDEC ID as configured in devicetree. */
+	u8_t jedec_id[JEDEC_ID_LEN];
+	/** Port on which the device is connected. */
+	flexspi_port_t port;
+	/** Size of the flash device in bytes. */
+	size_t size;
+	/** Max data size in bytes for "page program" command. */
+	size_t page_size;
+	/** FlexSPI LUT commands. */
+	const u32_t *lut;
+	/** Number of element in LUT. */
+	size_t lut_length;
 #if defined(CONFIG_FLASH_PAGE_LAYOUT)
 	struct flash_pages_layout pages_layout;
 #endif

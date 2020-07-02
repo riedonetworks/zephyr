@@ -26,10 +26,13 @@
  *  A P I
  */
 
-typedef void (*flexspi_api_update_lut)(struct device *dev,
-				       unsigned int index,
-				       const u32_t *cmd,
-				       unsigned int count);
+typedef off_t (*flexspi_api_get_mem_offset)(struct device *dev,
+					    flexspi_port_t port);
+
+typedef int (*flexspi_api_update_lut)(struct device *dev,
+				      unsigned int index,
+				      const u32_t *cmd,
+				      unsigned int count);
 
 typedef void (*flexspi_api_sw_reset)(struct device *dev);
 
@@ -53,6 +56,7 @@ typedef void (*flexspi_api_mem_read)(struct device *dev,
  * This is the mandatory API any FlexSPI driver needs to expose.
  */
 struct flexspi_driver_api {
+	flexspi_api_get_mem_offset get_mem_offset;
 	flexspi_api_update_lut update_lut;
 	flexspi_api_sw_reset sw_reset;
 	flexspi_api_xfer_blocking xfer_blocking;
@@ -66,6 +70,20 @@ struct flexspi_driver_api {
  */
 
 /**
+ * @brief Get the offset of a device in the FlexSIP memory map.
+ *
+ * @param dev FlexSPI device structure.
+ * @param port Chip select of the device attached to the FlexSPI controller.
+ * @return The offset or -1 if port is out of range.
+ */
+static inline off_t flexspi_get_mem_offset(struct device *dev, flexspi_port_t port)
+{
+	const struct flexspi_driver_api *api = dev->driver_api;
+
+	return api->get_mem_offset(dev, port);
+}
+
+/**
  * @brief Update the controller look-up table.
  *
  * @note Each command consists of up to 8 instructions and
@@ -76,14 +94,14 @@ struct flexspi_driver_api {
  * @param cmd Command sequence array.
  * @param count Number of sequences.
  */
-static inline void flexspi_update_lut(struct device *dev,
-				      unsigned int index,
-				      const u32_t *cmd,
-				      unsigned int count)
+static inline int flexspi_update_lut(struct device *dev,
+				     unsigned int index,
+				     const u32_t *cmd,
+				     unsigned int count)
 {
 	const struct flexspi_driver_api *api = dev->driver_api;
 
-	api->update_lut(dev, index, cmd, count);
+	return api->update_lut(dev, index, cmd, count);
 }
 
 /**
