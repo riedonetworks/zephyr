@@ -130,6 +130,10 @@ void ili9340_lcd_init(struct ili9340_data *p_ili9340)
 	data[14] = (0x0F); 
 	ili9340_transmit(p_ili9340, cmd, data, 15);
 
+	cmd = 0x35;    // Tearing Effect Line ON
+	data[0] = (0x01);
+	ili9340_transmit(p_ili9340, cmd, data, 1);
+
 
 	cmd = 0x29;    //Display on
 	ili9340_transmit(p_ili9340, cmd, NULL, 0);
