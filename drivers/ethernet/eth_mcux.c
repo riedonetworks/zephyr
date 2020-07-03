@@ -895,9 +895,9 @@ static int eth_init(struct device *dev)
 	/* Initialize/override OUI which may not be correct in
 	 * devicetree.
 	 */
-	context->mac_addr[0] = FREESCALE_OUI_B0;
-	context->mac_addr[1] = FREESCALE_OUI_B1;
-	context->mac_addr[2] = FREESCALE_OUI_B2;
+	//context->mac_addr[0] = FREESCALE_OUI_B0;
+	//context->mac_addr[1] = FREESCALE_OUI_B1;
+	//context->mac_addr[2] = FREESCALE_OUI_B2;
 	if (context->generate_mac) {
 		context->generate_mac(context->mac_addr);
 	}
@@ -1029,6 +1029,11 @@ static int eth_mcux_set_config(struct device *dev,
 	switch (type) {
 		case ETHERNET_CONFIG_TYPE_MAC_ADDRESS:
 			memcpy(context->mac_addr, config->mac_address.addr, sizeof(context->mac_addr));
+			LOG_DBG("%s changing MAC to %02x:%02x:%02x:%02x:%02x:%02x",
+				eth_name(context->base),
+				context->mac_addr[0], context->mac_addr[1],
+				context->mac_addr[2], context->mac_addr[3],
+				context->mac_addr[4], context->mac_addr[5]);
 			ENET_SetMacAddr(context->base, context->mac_addr);
 			return 0;
 		default: 
@@ -1139,7 +1144,7 @@ static struct eth_context eth_0_context = {
 	.generate_mac = generate_random_mac,
 #endif
 #if defined(CONFIG_ETH_MCUX_0_MANUAL_MAC)
-	.mac_addr = DT_ETH_MCUX_0_MAC,
+	.mac_addr = DT_ALIAS_ETH_LOCAL_MAC_ADDRESS,
 	.generate_mac = NULL,
 #endif
 };
@@ -1198,7 +1203,7 @@ static struct eth_context eth_1_context = {
 	.generate_mac = generate_random_mac,
 #endif
 #if defined(CONFIG_ETH_MCUX_1_MANUAL_MAC)
-	.mac_addr = DT_ETH_MCUX_1_MAC,
+	.mac_addr = DT_ALIAS_ETH1_LOCAL_MAC_ADDRESS,
 	.generate_mac = NULL,
 #endif
 };
