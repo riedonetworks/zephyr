@@ -1021,6 +1021,22 @@ static enum ethernet_hw_caps eth_mcux_get_capabilities(struct device *dev)
 		ETHERNET_LINK_100BASE_T;
 }
 
+static int eth_mcux_set_config(struct device *dev,
+			  enum ethernet_config_type type,
+			  const struct ethernet_config *config)
+{
+	struct eth_context *context = dev->driver_data;
+	switch (type) {
+		case ETHERNET_CONFIG_TYPE_MAC_ADDRESS:
+			memcpy(context->mac_addr, config->mac_address.addr, sizeof(context->mac_addr));
+			ENET_SetMacAddr(context->base, context->mac_addr);
+			return 0;
+		default: 
+		break;
+	}
+	return -ENOTSUP;
+}
+
 #if defined(CONFIG_PTP_CLOCK_MCUX)
 static struct device *eth_mcux_get_ptp_clock(struct device *dev)
 {
@@ -1036,6 +1052,7 @@ static const struct ethernet_api api_funcs = {
 	.get_ptp_clock		= eth_mcux_get_ptp_clock,
 #endif
 	.get_capabilities	= eth_mcux_get_capabilities,
+	.set_config = eth_mcux_set_config,
 	.send			= eth_tx,
 };
 
