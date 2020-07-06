@@ -809,6 +809,9 @@ static void generate_random_mac(u8_t *mac_addr)
 	u32_t entropy;
 
 	entropy = sys_rand32_get();
+	mac_addr[0] = FREESCALE_OUI_B0;
+	mac_addr[1] = FREESCALE_OUI_B1;
+	mac_addr[2] = FREESCALE_OUI_B2;
 
 	mac_addr[0] |= 0x02; /* force LAA bit */
 
@@ -830,8 +833,11 @@ static void generate_eth0_unique_mac(u8_t *mac_addr)
 	u32_t id = SIM->UIDH ^ SIM->UIDMH ^ SIM->UIDML ^ SIM->UIDL;
 #endif
 
-	mac_addr[0] |= 0x02; /* force LAA bit */
+	mac_addr[0] = FREESCALE_OUI_B0;
+	mac_addr[1] = FREESCALE_OUI_B1;
+	mac_addr[2] = FREESCALE_OUI_B2;
 
+	mac_addr[0] |= 0x02; /* force LAA bit */
 	mac_addr[3] = id >> 8;
 	mac_addr[4] = id >> 16;
 	mac_addr[5] = id >> 0;
@@ -892,12 +898,6 @@ static int eth_init(struct device *dev)
 	enet_config.macSpecialConfig |= kENET_ControlPromiscuousEnable;
 #endif
 
-	/* Initialize/override OUI which may not be correct in
-	 * devicetree.
-	 */
-	//context->mac_addr[0] = FREESCALE_OUI_B0;
-	//context->mac_addr[1] = FREESCALE_OUI_B1;
-	//context->mac_addr[2] = FREESCALE_OUI_B2;
 	if (context->generate_mac) {
 		context->generate_mac(context->mac_addr);
 	}
