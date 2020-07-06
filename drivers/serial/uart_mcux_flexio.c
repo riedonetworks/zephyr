@@ -929,9 +929,9 @@ static int mcux_flexio_uart_init(struct device *dev)
 				   &clock_freq)) {
 		return -EINVAL;
 	}
-	LOG_INF("Initalizing FlexIO-UART \"%s\"", log_strdup(dev->config->name));
+	LOG_DBG("Initalizing FlexIO-UART \"%s\"", log_strdup(dev->config->name));
 	LOG_DBG("Clock freq: %d MHz", clock_freq / 1000000);
-	LOG_INF("target baudrade: %d", config->baud_rate);
+	LOG_DBG("target baudrade: %d", config->baud_rate);
 	//LOG_DBG("TX pin: %d", config->base->TxPinIndex);
 	//LOG_DBG("RX pin: %d", config->base->RxPinIndex);
 	//LOG_DBG("FlexIO: %p", config->base->flexioBase);
@@ -951,7 +951,7 @@ static int mcux_flexio_uart_init(struct device *dev)
 
 	// Monkey patch the Tx timer for TX clk if used
 	if (config->tx_clk_pin_index != 0xFF) {
-		LOG_INF("Using sychronous TX mode (TxClkpin: %d!)", config->tx_clk_pin_index);
+		LOG_DBG("Using sychronous TX mode (TxClkpin: %d!)", config->tx_clk_pin_index);
 
 		/*2. Configure the timer 0 for tx. */
 		flexio_timer_config_t timerConfig;
@@ -1025,7 +1025,7 @@ static int mcux_flexio_uart_init(struct device *dev)
 
 	if (config->rx_clk_pin_index != 0xFF) {
 
-		LOG_INF("Using sychronous RX mode (RxClkpin: %d!)", config->rx_clk_pin_index);
+		LOG_DBG("Using sychronous RX mode (RxClkpin: %d!)", config->rx_clk_pin_index);
 
 		/* 4. Configure the Rx timer for Sychronous RX */
 		flexio_timer_config_t timerConfig;
