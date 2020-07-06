@@ -1057,8 +1057,8 @@ static const struct ethernet_api api_funcs = {
 	.get_ptp_clock		= eth_mcux_get_ptp_clock,
 #endif
 	.get_capabilities	= eth_mcux_get_capabilities,
-	.set_config = eth_mcux_set_config,
-	.send			= eth_tx,
+	.set_config 		= eth_mcux_set_config,
+	.send				= eth_tx,
 };
 
 #if defined(CONFIG_PTP_CLOCK_MCUX)
