@@ -103,7 +103,7 @@ struct net_tcp_options {
 };
 
 /* Max received bytes to buffer internally */
-#define NET_TCP_BUF_MAX_LEN 1280
+#define NET_TCP_BUF_MAX_LEN (4 * 1024)
 
 /* Max segment lifetime, in seconds */
 #define NET_TCP_MAX_SEG_LIFETIME 60
