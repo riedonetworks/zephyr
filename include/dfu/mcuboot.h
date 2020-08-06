@@ -174,6 +174,13 @@ int mcuboot_swap_type(void);
 int boot_request_upgrade(int permanent);
 
 /**
+ * @brief Reverts what is done by boot_request_upgrade.
+ *
+ * @return 0 on success, negative errno code on fail.
+ */
+int boot_unset_request_upgrade(void);
+
+/**
  * @brief Erase the image Bank.
  *
  * @param area_id flash_area ID of image bank to be erased.

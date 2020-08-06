@@ -682,6 +682,49 @@ op_end:
 	return rc;
 }
 
+#ifdef CONFIG_MCUBOOT_TRAILER_SWAP_TYPE
+/*
+ * Erase the trailer.
+ */
+int boot_unset_request_upgrade(void)
+{
+	const struct flash_area *fa;
+	struct device *flash_dev;
+	int rc;
+
+	rc = flash_area_open(FLASH_AREA_IMAGE_SECONDARY, &fa);
+	if (rc) {
+		return rc;
+	}
+
+	flash_dev = device_get_binding(fa->fa_dev_name);
+	if (flash_dev == NULL) {
+		flash_area_close(fa);
+		return -EINVAL;
+	}
+
+	/* TODO Get real trailer size, 40 is only for the last part of the
+	        trailer (Swap info, Copy done, Image OK and MAGIC */
+	size_t trailer_size = 40;
+
+	struct flash_pages_info page_info;
+	rc = flash_get_page_info_by_offs(flash_dev,
+					 fa->fa_size - trailer_size,
+					 &page_info);
+	if (rc) {
+		flash_area_close(fa);
+		return rc;
+	}
+
+	/* FIXME Erasing only one page may not be sufficient with some flash */
+	rc = flash_area_erase(fa, page_info.start_offset, page_info.size);
+
+	flash_area_close(fa);
+
+	return rc;
+}
+#endif
+
 bool boot_is_img_confirmed(void)
 {
 	return boot_image_ok_read(FLASH_AREA_IMAGE_PRIMARY) == BOOT_FLAG_SET;
