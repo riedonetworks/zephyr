@@ -83,6 +83,15 @@ static const char *eth_name(ENET_Type *base)
 	}
 }
 
+/**
+ * This enum must reflect the enum "phy-management-interface" in "nxp,kinetis-ethernet.yaml".
+ */
+enum phy_mgmt_if
+{
+	PHY_MGMT_IF_SMI,
+	PHY_MGMT_IF_NONE,
+};
+
 struct eth_context {
 	ENET_Type *base;
 	void (*config_func)(void);
@@ -101,6 +110,7 @@ struct eth_context {
 	enum eth_mcux_phy_state phy_state;
 	bool enabled;
 	bool link_up;
+	enum phy_mgmt_if phy_miface;
 	u32_t phy_addr;
 	phy_duplex_t phy_duplex;
 	phy_speed_t phy_speed;
@@ -210,11 +220,15 @@ static inline struct net_if *get_iface(struct eth_context *ctx, u16_t vlan_tag)
 
 static void eth_mcux_phy_enter_reset(struct eth_context *context)
 {
-	/* Reset the PHY. */
-	ENET_StartSMIWrite(context->base, context->phy_addr,
-			   PHY_BASICCONTROL_REG,
-			   kENET_MiiWriteValidFrame,
-			   PHY_BCTL_RESET_MASK);
+	if(context->phy_miface == PHY_MGMT_IF_SMI) {
+		/* Reset the PHY. */
+		ENET_StartSMIWrite(context->base, context->phy_addr,
+				PHY_BASICCONTROL_REG,
+				kENET_MiiWriteValidFrame,
+				PHY_BCTL_RESET_MASK);
+	} else {
+		k_work_submit(&context->phy_work);
+	}
 	context->phy_state = eth_mcux_phy_state_reset;
 }
 
@@ -230,11 +244,15 @@ static void eth_mcux_phy_start(struct eth_context *context)
 	switch (context->phy_state) {
 	case eth_mcux_phy_state_initial:
 		ENET_ActiveRead(context->base);
-		/* Reset the PHY. */
-		ENET_StartSMIWrite(context->base, context->phy_addr,
-				   PHY_BASICCONTROL_REG,
-				   kENET_MiiWriteValidFrame,
-				   PHY_BCTL_RESET_MASK);
+		if(context->phy_miface == PHY_MGMT_IF_SMI) {
+			/* Reset the PHY. */
+			ENET_StartSMIWrite(context->base, context->phy_addr,
+					PHY_BASICCONTROL_REG,
+					kENET_MiiWriteValidFrame,
+					PHY_BCTL_RESET_MASK);
+		} else {
+			k_work_submit(&context->phy_work);
+		}
 #ifdef CONFIG_SOC_SERIES_IMX_RT
 		context->phy_state = eth_mcux_phy_state_initial;
 #else
@@ -290,33 +308,34 @@ static void eth_mcux_phy_event(struct eth_context *context)
 {
 	u32_t status;
 	bool link_up;
-#ifdef CONFIG_SOC_SERIES_IMX_RT
-	status_t res;
-	u32_t ctrl2;
-#endif
 	phy_duplex_t phy_duplex = kPHY_FullDuplex;
 	phy_speed_t phy_speed = kPHY_Speed100M;
 
 #ifdef CONFIG_ETH_MCUX_PHY_EXTRA_DEBUG
-	LOG_DBG("%s phy_state=%s", eth_name(context->base),
-		phy_state_name(context->phy_state));
+	LOG_DBG("%s phy_state=%s, link=%d", eth_name(context->base),
+		phy_state_name(context->phy_state), context->link_up);
 #endif
 	switch (context->phy_state) {
 	case eth_mcux_phy_state_initial:
 #ifdef CONFIG_SOC_SERIES_IMX_RT
-		ENET_DisableInterrupts(context->base, ENET_EIR_MII_MASK);
-		res = PHY_Read(context->base, context->phy_addr,
-			       PHY_CONTROL2_REG, &ctrl2);
-		ENET_EnableInterrupts(context->base, ENET_EIR_MII_MASK);
-		if (res != kStatus_Success) {
-			LOG_WRN("Reading PHY reg failed (status 0x%x)", res);
-			k_work_submit(&context->phy_work);
+		if(context->phy_miface == PHY_MGMT_IF_SMI) {
+			u32_t ctrl2;
+			ENET_DisableInterrupts(context->base, ENET_EIR_MII_MASK);
+			status_t res = PHY_Read(context->base, context->phy_addr,
+					PHY_CONTROL2_REG, &ctrl2);
+			ENET_EnableInterrupts(context->base, ENET_EIR_MII_MASK);
+			if (res != kStatus_Success) {
+				LOG_WRN("Reading PHY reg failed (status 0x%x)", res);
+				k_work_submit(&context->phy_work);
+			} else {
+				ctrl2 |= PHY_CTL2_REFCLK_SELECT_MASK;
+				ENET_StartSMIWrite(context->base, context->phy_addr,
+						PHY_CONTROL2_REG,
+						kENET_MiiWriteValidFrame,
+						ctrl2);
+			}
 		} else {
-			ctrl2 |= PHY_CTL2_REFCLK_SELECT_MASK;
-			ENET_StartSMIWrite(context->base, context->phy_addr,
-					   PHY_CONTROL2_REG,
-					   kENET_MiiWriteValidFrame,
-					   ctrl2);
+			k_work_submit(&context->phy_work);
 		}
 		context->phy_state = eth_mcux_phy_state_reset;
 #endif
@@ -330,50 +349,82 @@ static void eth_mcux_phy_event(struct eth_context *context)
 		}
 		break;
 	case eth_mcux_phy_state_reset:
-		/* Setup PHY autonegotiation. */
-		ENET_StartSMIWrite(context->base, context->phy_addr,
-				   PHY_AUTONEG_ADVERTISE_REG,
-				   kENET_MiiWriteValidFrame,
-				   (PHY_100BASETX_FULLDUPLEX_MASK |
-				    PHY_100BASETX_HALFDUPLEX_MASK |
-				    PHY_10BASETX_FULLDUPLEX_MASK |
-				    PHY_10BASETX_HALFDUPLEX_MASK | 0x1U));
+		if(context->phy_miface == PHY_MGMT_IF_SMI) {
+			/* Setup PHY autonegotiation. */
+			ENET_StartSMIWrite(context->base, context->phy_addr,
+					PHY_AUTONEG_ADVERTISE_REG,
+					kENET_MiiWriteValidFrame,
+					(PHY_100BASETX_FULLDUPLEX_MASK |
+						PHY_100BASETX_HALFDUPLEX_MASK |
+						PHY_10BASETX_FULLDUPLEX_MASK |
+						PHY_10BASETX_HALFDUPLEX_MASK | 0x1U));
+		} else {
+			k_work_submit(&context->phy_work);
+		}
 		context->phy_state = eth_mcux_phy_state_autoneg;
 		break;
 	case eth_mcux_phy_state_autoneg:
-		/* Setup PHY autonegotiation. */
-		ENET_StartSMIWrite(context->base, context->phy_addr,
-				   PHY_BASICCONTROL_REG,
-				   kENET_MiiWriteValidFrame,
-				   (PHY_BCTL_AUTONEG_MASK |
-				    PHY_BCTL_RESTART_AUTONEG_MASK));
+		if(context->phy_miface == PHY_MGMT_IF_SMI) {
+			/* Setup PHY autonegotiation. */
+			ENET_StartSMIWrite(context->base, context->phy_addr,
+					PHY_BASICCONTROL_REG,
+					kENET_MiiWriteValidFrame,
+					(PHY_BCTL_AUTONEG_MASK |
+						PHY_BCTL_RESTART_AUTONEG_MASK));
+		} else {
+			k_work_submit(&context->phy_work);
+		}
 		context->phy_state = eth_mcux_phy_state_restart;
 		break;
 	case eth_mcux_phy_state_wait:
 	case eth_mcux_phy_state_restart:
-		/* Start reading the PHY basic status. */
-		ENET_StartSMIRead(context->base, context->phy_addr,
-				  PHY_BASICSTATUS_REG,
-				  kENET_MiiReadValidFrame);
+		if(context->phy_miface == PHY_MGMT_IF_SMI) {
+			/* Start reading the PHY basic status. */
+			ENET_StartSMIRead(context->base, context->phy_addr,
+					PHY_BASICSTATUS_REG,
+					kENET_MiiReadValidFrame);
+		} 
 		context->phy_state = eth_mcux_phy_state_read_status;
+
+		if(context->phy_miface != PHY_MGMT_IF_SMI) {
+			k_work_submit(&context->phy_work);
+		}
+
 		break;
 	case eth_mcux_phy_state_read_status:
 		/* PHY Basic status is available. */
-		status = ENET_ReadSMIData(context->base);
-		link_up =  status & PHY_BSTATUS_LINKSTATUS_MASK;
+		if(context->phy_miface == PHY_MGMT_IF_SMI) {
+			status = ENET_ReadSMIData(context->base);
+			link_up =  status & PHY_BSTATUS_LINKSTATUS_MASK;
+		} else {
+			link_up = PHY_BSTATUS_LINKSTATUS_MASK;
+			LOG_DBG("%s Fake linkup", eth_name(context->base));
+		}
 		if (link_up && !context->link_up) {
+			LOG_DBG("%s link-up event", eth_name(context->base));
 			/* Start reading the PHY control register. */
-			ENET_StartSMIRead(context->base, context->phy_addr,
-					  PHY_CONTROL1_REG,
-					  kENET_MiiReadValidFrame);
+			if(context->phy_miface == PHY_MGMT_IF_SMI) {
+				ENET_StartSMIRead(context->base, context->phy_addr,
+						PHY_CONTROL1_REG,
+						kENET_MiiReadValidFrame);
+			} 
 			context->link_up = link_up;
 			context->phy_state = eth_mcux_phy_state_read_duplex;
 
 			/* Network interface might be NULL at this point */
 			if (context->iface) {
+				LOG_DBG("%s carrier on", eth_name(context->base));
 				net_eth_carrier_on(context->iface);
 				k_sleep(USEC_PER_MSEC);
 			}
+			else{
+				LOG_DBG("%s no iface", eth_name(context->base));	
+			}
+
+			if(context->phy_miface != PHY_MGMT_IF_SMI) {
+				k_work_submit(&context->phy_work);
+			}
+
 		} else if (!link_up && context->link_up) {
 			LOG_INF("%s link down", eth_name(context->base));
 			context->link_up = link_up;
@@ -382,6 +433,7 @@ static void eth_mcux_phy_event(struct eth_context *context)
 			context->phy_state = eth_mcux_phy_state_wait;
 			net_eth_carrier_off(context->iface);
 		} else {
+			LOG_DBG("%s waiting", eth_name(context->base));
 			k_delayed_work_submit(&context->delayed_phy_work,
 					      CONFIG_ETH_MCUX_PHY_TICK_MS);
 			context->phy_state = eth_mcux_phy_state_wait;
@@ -390,10 +442,12 @@ static void eth_mcux_phy_event(struct eth_context *context)
 		break;
 	case eth_mcux_phy_state_read_duplex:
 		/* PHY control register is available. */
-		status = ENET_ReadSMIData(context->base);
-		eth_mcux_decode_duplex_and_speed(status,
-						 &phy_duplex,
-						 &phy_speed);
+		if(context->phy_miface == PHY_MGMT_IF_SMI) {
+			status = ENET_ReadSMIData(context->base);
+			eth_mcux_decode_duplex_and_speed(status,
+							&phy_duplex,
+							&phy_speed);
+		}
 		if (phy_speed != context->phy_speed ||
 		    phy_duplex != context->phy_duplex) {
 			context->phy_speed = phy_speed;
@@ -433,36 +487,38 @@ static void eth_mcux_delayed_phy_work(struct k_work *item)
 static void eth_mcux_phy_setup(struct eth_context *context)
 {
 #ifdef CONFIG_SOC_SERIES_IMX_RT
-	status_t res;
-	u32_t oms_override;
+	if(context->phy_miface == PHY_MGMT_IF_SMI) {
+		status_t res;
+		u32_t oms_override;
 
-	/* Disable MII interrupts to prevent triggering PHY events. */
-	ENET_DisableInterrupts(context->base, ENET_EIR_MII_MASK);
+		/* Disable MII interrupts to prevent triggering PHY events. */
+		ENET_DisableInterrupts(context->base, ENET_EIR_MII_MASK);
 
-	res = PHY_Read(context->base, context->phy_addr,
-		       PHY_OMS_OVERRIDE_REG, &oms_override);
-	if (res != kStatus_Success) {
-		LOG_WRN("Reading PHY reg failed (status 0x%x)", res);
-	} else {
-		/* Based on strap-in pins the PHY can be in factory test mode.
-		 * Force normal operation.
-		 */
-		oms_override &= ~PHY_OMS_FACTORY_MODE_MASK;
-
-		/* Prevent PHY entering NAND Tree mode override. */
-		if (oms_override & PHY_OMS_NANDTREE_MASK) {
-			oms_override &= ~PHY_OMS_NANDTREE_MASK;
-		}
-
-		res = PHY_Write(context->base, context->phy_addr,
-				PHY_OMS_OVERRIDE_REG, oms_override);
+		res = PHY_Read(context->base, context->phy_addr,
+				PHY_OMS_OVERRIDE_REG, &oms_override);
 		if (res != kStatus_Success) {
-			LOG_WRN("Writing PHY reg failed (status 0x%x)", res);
-		}
-	}
+			LOG_WRN("Reading PHY reg failed (status 0x%x)", res);
+		} else {
+			/* Based on strap-in pins the PHY can be in factory test mode.
+			* Force normal operation.
+			*/
+			oms_override &= ~PHY_OMS_FACTORY_MODE_MASK;
 
-	ENET_EnableInterrupts(context->base, ENET_EIR_MII_MASK);
-#endif
+			/* Prevent PHY entering NAND Tree mode override. */
+			if (oms_override & PHY_OMS_NANDTREE_MASK) {
+				oms_override &= ~PHY_OMS_NANDTREE_MASK;
+			}
+
+			res = PHY_Write(context->base, context->phy_addr,
+					PHY_OMS_OVERRIDE_REG, oms_override);
+			if (res != kStatus_Success) {
+				LOG_WRN("Writing PHY reg failed (status 0x%x)", res);
+			}
+		}
+
+		ENET_EnableInterrupts(context->base, ENET_EIR_MII_MASK);
+	}
+	#endif
 }
 
 #if defined(CONFIG_PTP_CLOCK_MCUX)
@@ -1003,6 +1059,7 @@ static void eth_iface_init(struct net_if *iface)
 	net_if_flag_set(iface, NET_IF_NO_AUTO_START);
 
 	context->config_func();
+	context->link_up = 0;
 }
 
 static enum ethernet_hw_caps eth_mcux_get_capabilities(struct device *dev)
@@ -1137,6 +1194,7 @@ static struct eth_context eth_0_context = {
 	.phy_addr = 0U,
 	.phy_duplex = kPHY_FullDuplex,
 	.phy_speed = kPHY_Speed100M,
+	.link_up = 0,
 #if defined(CONFIG_ETH_MCUX_0_UNIQUE_MAC)
 	.generate_mac = generate_eth0_unique_mac,
 #endif
@@ -1147,6 +1205,7 @@ static struct eth_context eth_0_context = {
 	.mac_addr = DT_ALIAS_ETH_LOCAL_MAC_ADDRESS,
 	.generate_mac = NULL,
 #endif
+	.phy_miface = DT_INST_0_NXP_KINETIS_ETHERNET_PHY_MANAGEMENT_INTERFACE_ENUM,
 };
 
 ETH_NET_DEVICE_INIT(eth_mcux_0, DT_ETH_MCUX_0_NAME, eth_init,
@@ -1196,6 +1255,7 @@ static struct eth_context eth_1_context = {
 	.phy_addr = 1U,
 	.phy_duplex = kPHY_FullDuplex,
 	.phy_speed = kPHY_Speed100M,
+	.link_up = 0,
 #if defined(CONFIG_ETH_MCUX_1_UNIQUE_MAC)
 	.generate_mac = generate_eth1_unique_mac,
 #endif
@@ -1206,6 +1266,7 @@ static struct eth_context eth_1_context = {
 	.mac_addr = DT_ALIAS_ETH1_LOCAL_MAC_ADDRESS,
 	.generate_mac = NULL,
 #endif
+	.phy_miface = DT_INST_1_NXP_KINETIS_ETHERNET_PHY_MANAGEMENT_INTERFACE_ENUM,
 };
 
 ETH_NET_DEVICE_INIT(eth_mcux_1, DT_ETH_MCUX_1_NAME, eth_init,
