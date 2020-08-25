@@ -324,7 +324,15 @@ void flexspi_nor_flash_pages_layout(
 }
 #endif /* CONFIG_FLASH_PAGE_LAYOUT */
 
-static int flexspi_nor_flash_sector_erase(struct device *dev, off_t offset)
+#define BLOCK_64K_SIZE (64U * 1024U)
+#define BLOCK_64K_MASK (BLOCK_64K_SIZE - 1U)
+#define BLOCK_32K_SIZE (32U * 1024U)
+#define BLOCK_32K_MASK (BLOCK_32K_SIZE - 1U)
+
+static int flexspi_nor_flash_erase_unit(struct device *dev,
+					off_t offset,
+					int cmd_idx,
+					size_t size)
 {
 	const struct flexspi_nor_flash_dev_config *dev_cfg =
 		dev->config->config_info;
@@ -333,8 +341,7 @@ static int flexspi_nor_flash_sector_erase(struct device *dev, off_t offset)
 	status_t status;
 	int retval = 0;
 
-	__ASSERT((offset & (dev_cfg->pages_layout.pages_size - 1U)) == 0,
-		 "Offset not on sector boundary");
+	__ASSERT((offset & (size - 1U)) == 0, "Offset not on unit boundary");
 
 	unsigned int key = critical_section_enter(dev_data->flexspi);
 
@@ -342,7 +349,7 @@ static int flexspi_nor_flash_sector_erase(struct device *dev, off_t offset)
 	flashXfer.port          = dev_cfg->port;
 	flashXfer.cmdType       = kFLEXSPI_Command;
 	flashXfer.SeqNumber     = 1;
-	flashXfer.seqIndex      = NOR_CMD_LUT_SEQ_IDX_ERASESECTOR;
+	flashXfer.seqIndex      = cmd_idx;
 
 	status = flexspi_xfer_blocking(dev_data->flexspi, &flashXfer);
 	if (status != kStatus_Success) {
@@ -355,16 +362,41 @@ static int flexspi_nor_flash_sector_erase(struct device *dev, off_t offset)
 						 dev_cfg->port);
 	if (status != kStatus_Success) {
 		retval = -EIO;
-		goto done;
 	}
 
 done:
 	flexspi_sw_reset(dev_data->flexspi);
-	flexspi_invalidate_dcache(dev_data->flexspi,
-				  offset,
-				  dev_cfg->pages_layout.pages_size);
+	flexspi_invalidate_dcache(dev_data->flexspi, offset, size);
 	critical_section_leave(dev_data->flexspi, key);
 	return retval;
+
+}
+
+static inline int flexspi_nor_flash_64kb_erase(struct device *dev, off_t offset)
+{
+	return flexspi_nor_flash_erase_unit(dev,
+					    offset,
+					    NOR_CMD_LUT_SEQ_IDX_ERASE64KBLOCK,
+					    BLOCK_64K_SIZE);
+}
+
+static inline int flexspi_nor_flash_32kb_erase(struct device *dev, off_t offset)
+{
+	return flexspi_nor_flash_erase_unit(dev,
+					    offset,
+					    NOR_CMD_LUT_SEQ_IDX_ERASE32KBLOCK,
+					    BLOCK_32K_SIZE);
+}
+
+static inline int flexspi_nor_flash_sector_erase(struct device *dev, off_t offset)
+{
+	const struct flexspi_nor_flash_dev_config *dev_cfg =
+		dev->config->config_info;
+
+	return flexspi_nor_flash_erase_unit(dev,
+					    offset,
+					    NOR_CMD_LUT_SEQ_IDX_ERASESECTOR,
+					    dev_cfg->pages_layout.pages_size);
 }
 
 int flexspi_nor_flash_erase(struct device *dev, off_t offset, size_t len)
@@ -387,18 +419,31 @@ int flexspi_nor_flash_erase(struct device *dev, off_t offset, size_t len)
 
 	offset += dev_data->mem_offset;
 
-	/* TODO: Improve performance by using block erase 32 kiB ot 64 kiB
-	         when len is big enough. */
+	while (len) {
+		int retval;
 
-	off_t sector;
-	int retval;
+		if (((offset & BLOCK_64K_MASK) == 0) &&
+		     (len >= BLOCK_64K_SIZE)) {
+			LOG_DBG("ERASE 64 KiB -> offset: 0x%08x, remaining: %u",
+				offset, len);
+			retval = flexspi_nor_flash_64kb_erase(dev, offset);
+			offset += BLOCK_64K_SIZE;
+			len -= BLOCK_64K_SIZE;
+		} else if (((offset & BLOCK_32K_MASK) == 0) &&
+			   (len >= BLOCK_32K_SIZE)) {
+			LOG_DBG("ERASE 32 KiB -> offset: 0x%08x, remaining: %u",
+				offset, len);
+			retval = flexspi_nor_flash_32kb_erase(dev, offset);
+			offset += BLOCK_32K_SIZE;
+			len -= BLOCK_32K_SIZE;
+		} else {
+			LOG_DBG("ERASE sector -> offset: 0x%08x, remaining: %u",
+				offset, len);
+			retval = flexspi_nor_flash_sector_erase(dev, offset);
+			offset += SECTOR_SIZE;
+			len -= SECTOR_SIZE;
+		}
 
-	for (
-		sector = offset;
-		sector < offset + len - SECTOR_SIZE;
-		sector += SECTOR_SIZE
-	) {
-		retval = flexspi_nor_flash_sector_erase(dev, sector);
 		if (retval) {
 			return retval;
 		}
@@ -409,7 +454,7 @@ int flexspi_nor_flash_erase(struct device *dev, off_t offset, size_t len)
 		}
 	}
 
-	return flexspi_nor_flash_sector_erase(dev, sector);
+	return 0;
 }
 
 static int flexspi_nor_flash_page_program(struct device *dev, off_t offset,
