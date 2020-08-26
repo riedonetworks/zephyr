@@ -12,3 +12,12 @@ properties:
       required: true
     interrupts:
       required: true
+
+    phy-management-interface:
+      type: string
+      required: false
+      description: Select the PHY management interface.
+      default: "MDIO"
+      enum:
+          - "MDIO"
+          - "None"
