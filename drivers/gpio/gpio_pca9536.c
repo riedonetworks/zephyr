@@ -290,7 +290,7 @@ static int gpio_pca9536_port_set_masked_raw(struct device *dev,
 	u8_t reg_out;
 	int ret;
 
-	__ASSERT((mask & 0xFFFFFF00) || (value & 0xFFFFFF00), "Only 4 pin are supported on PCA9536");
+	__ASSERT(!((mask & 0xFFFFFFF0) || (value & 0xFFFFFFF0)), "Only 4 pin are supported on PCA9536");
 
 	/* Can't do I2C bus operations from an ISR */
 	if (k_is_in_isr()) {
@@ -326,7 +326,7 @@ static int gpio_pca9536_port_toggle_bits(struct device *dev, u32_t mask)
 	u8_t reg_out;
 	int ret;
 
-	__ASSERT(mask & 0xFFFFFF00, "Only 4 pin are supported on PCA9536");
+	__ASSERT(!(mask & 0xFFFFFFF0), "Only 4 pin are supported on PCA9536");
 
 	/* Can't do I2C bus operations from an ISR */
 	if (k_is_in_isr()) {
