@@ -73,9 +73,9 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			itcm0: itcm@0 {
+			itcm0: itcm@10000 {
 				compatible = "nxp,imx-itcm";
-				reg = <0x00000000 0x20000>;
+				reg = <0x00010000 0x10000>;
 			};
 
 			dtcm0: dtcm@20000000 {

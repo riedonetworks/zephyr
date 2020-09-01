@@ -28,6 +28,20 @@ static const struct arm_mpu_region mpu_regions[] = {
 #else
 			 REGION_RAM_ATTR(REGION_SRAM_SIZE)),
 #endif
+#if defined(CONFIG_SOC_MIMXRT1062)
+	/* Region 2 - ITCM for NULL pointer detection */
+	MPU_REGION_ENTRY("NULL",
+			 0x0,
+			 REGION_NA_ATTR(REGION_64K)), /* FIXME - Remove hard-coded value */
+	/* Region 3 - ITCM for code */
+	MPU_REGION_ENTRY("ITCM",
+			 DT_INST_0_NXP_IMX_ITCM_BASE_ADDRESS,
+			 REGION_ITCM_ATTR(REGION_ITCM_SIZE)),
+	/* Region 4 - DTCM */
+	MPU_REGION_ENTRY("DTCM",
+			 DT_INST_0_NXP_IMX_DTCM_BASE_ADDRESS,
+			 REGION_DTCM_ATTR(REGION_DTCM_SIZE)),
+#endif /* CONFIG_SOC_MIMXRT1062 */
 };
 
 const struct arm_mpu_config mpu_config = {
