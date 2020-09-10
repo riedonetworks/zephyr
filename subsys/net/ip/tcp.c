@@ -1880,12 +1880,6 @@ static int send_ack(struct net_context *context,
 		return 0;
 	}
 
-	// Work around for Windows: sleep 2 ms before preparing ack packet
-	//                          this way the TCP window get a chance
-	//                          to increase if application reads data
-	//                          in the meantime.
-	k_sleep(2);
-
 	ret = net_tcp_prepare_ack(context->tcp, remote, &pkt);
 	if (ret) {
 		return ret;
