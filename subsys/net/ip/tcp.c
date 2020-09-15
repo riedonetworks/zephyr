@@ -1451,6 +1451,9 @@ int net_tcp_listen(struct net_context *context)
 	return -EOPNOTSUPP;
 }
 
+static int send_ack(struct net_context *context,
+		struct sockaddr *remote, bool force);
+
 int net_tcp_update_recv_wnd(struct net_context *context, s32_t delta)
 {
 	s32_t new_win;
@@ -1465,7 +1468,12 @@ int net_tcp_update_recv_wnd(struct net_context *context, s32_t delta)
 		return -EINVAL;
 	}
 
+	LOG_INF("net_context_update_recv_wnd(): delta %d, new size: %d", delta, new_win);
+
 	context->tcp->recv_wnd = new_win;
+
+	LOG_INF("send ack (forced)");
+	send_ack(context, &context->remote, true);
 
 	return 0;
 }
@@ -1879,12 +1887,6 @@ static int send_ack(struct net_context *context,
 	if (!force && context->tcp->send_ack == context->tcp->sent_ack) {
 		return 0;
 	}
-
-	// Work around for Windows: sleep 2 ms before preparing ack packet
-	//                          this way the TCP window get a chance
-	//                          to increase if application reads data
-	//                          in the meantime.
-	k_sleep(K_MSEC(2));
 
 	ret = net_tcp_prepare_ack(context->tcp, remote, &pkt);
 	if (ret) {
