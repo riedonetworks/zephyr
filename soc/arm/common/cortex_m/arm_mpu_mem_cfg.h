@@ -60,6 +60,48 @@
 #error "Unsupported sram size configuration"
 #endif
 
+#if defined(CONFIG_SOC_MIMXRT1062)
+
+/* ITCM Region definitions */
+#if DT_INST_0_NXP_IMX_ITCM_SIZE <= (16 * 1024)
+#define REGION_ITCM_SIZE REGION_16K
+#elif DT_INST_0_NXP_IMX_ITCM_SIZE <= (32 * 1024)
+#define REGION_ITCM_SIZE REGION_32K
+#elif DT_INST_0_NXP_IMX_ITCM_SIZE <= (64 * 1024)
+#define REGION_ITCM_SIZE REGION_64K
+#elif DT_INST_0_NXP_IMX_ITCM_SIZE <= (128 * 1024)
+#define REGION_ITCM_SIZE REGION_128K
+#elif DT_INST_0_NXP_IMX_ITCM_SIZE <= (256 * 1024)
+#define REGION_ITCM_SIZE REGION_256K
+#elif DT_INST_0_NXP_IMX_ITCM_SIZE <= (512 * 1024)
+#define REGION_ITCM_SIZE REGION_512K
+#elif DT_INST_0_NXP_IMX_ITCM_SIZE <= (1024 * 1024)
+#define REGION_ITCM_SIZE REGION_1M
+#else
+#error "Unsupported ITCM size configuration"
+#endif
+
+/* DTCM Region definitions */
+#if DT_INST_0_NXP_IMX_DTCM_SIZE <= (16 * 1024)
+#define REGION_DTCM_SIZE REGION_16K
+#elif DT_INST_0_NXP_IMX_DTCM_SIZE <= (32 * 1024)
+#define REGION_DTCM_SIZE REGION_32K
+#elif DT_INST_0_NXP_IMX_DTCM_SIZE <= (64 * 1024)
+#define REGION_DTCM_SIZE REGION_64K
+#elif DT_INST_0_NXP_IMX_DTCM_SIZE <= (128 * 1024)
+#define REGION_DTCM_SIZE REGION_128K
+#elif DT_INST_0_NXP_IMX_DTCM_SIZE <= (256 * 1024)
+#define REGION_DTCM_SIZE REGION_256K
+#elif DT_INST_0_NXP_IMX_DTCM_SIZE <= (512 * 1024)
+#define REGION_DTCM_SIZE REGION_512K
+#elif DT_INST_0_NXP_IMX_DTCM_SIZE <= (1024 * 1024)
+#define REGION_DTCM_SIZE REGION_1M
+#else
+#error "Unsupported DTCM size configuration"
+#endif
+
+#endif /* CONFIG_SOC_MIMXRT1062 */
+
 #endif /* !ARMV8_M_BASELINE && !ARMV8_M_MAINLINE */
 
 #endif /* _ARM_CORTEX_M_MPU_MEM_CFG_H_ */
